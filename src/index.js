@@ -34,35 +34,87 @@ async function logUpload(db,kind,filename,rowCount,status,message=""){
   await db.prepare(`INSERT INTO upload_log(kind,filename,row_count,status,message,uploaded_at) VALUES(?,?,?,?,?,?)`).bind(kind,filename,rowCount,status,message,now()).run();
 }
 
-async function saveMapping(db,rows,originalName){
-  if(!Array.isArray(rows)||!rows.length)throw new Error("Village mapping sheet is empty.");
-  for(const c of ["PanchayatID","MVUNumber"])if(!(c in rows[0]))throw new Error(`Missing column: ${c}`);
-  const valid=[]; for(const r of rows){const p=clean(r.PanchayatID),v=clean(r.MVUNumber);if(!p||!v)continue;valid.push([p,v,clean(r.DistrictName),clean(r.BlockName),clean(r.PanchayatName),now()]);}
-  if(!valid.length)throw new Error("No valid Village Mapping rows found.");
-  await ensureSchema(db);
-  for(let i=0;i<valid.length;i+=50){
-    const stmts=valid.slice(i,i+50).map(x=>db.prepare(`INSERT INTO village_mapping(panchayat_id,mvu_number,district_name,block_name,panchayat_name,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(panchayat_id) DO UPDATE SET mvu_number=excluded.mvu_number,district_name=excluded.district_name,block_name=excluded.block_name,panchayat_name=excluded.panchayat_name,updated_at=excluded.updated_at`).bind(...x));
-    await db.batch(stmts);
+async function saveMappingChunk(db, rows, originalName, mode="chunk"){
+  if(!Array.isArray(rows)||!rows.length) throw new Error("Village mapping batch is empty.");
+  for(const c of ["PanchayatID","MVUNumber"]) if(!(c in rows[0])) throw new Error(`Missing column: ${c}`);
+  const valid=[];
+  for(const r of rows){
+    const p=clean(r.PanchayatID),v=clean(r.MVUNumber);
+    if(!p||!v) continue;
+    valid.push([p,v,clean(r.DistrictName),clean(r.BlockName),clean(r.PanchayatName),now()]);
   }
-  await logUpload(db,"mapping",originalName,rows.length,"success",`Village Mapping saved. ${valid.length} valid rows processed in batches.`);
+  if(!valid.length) return 0;
+  if(mode==="start" || mode==="replace_finish"){
+    const existing=await db.prepare(`SELECT COUNT(*) AS c FROM village_mapping`).first();
+    if(Number(existing?.c||0)>0) throw new Error("Village Mapping is locked. Use Hard Reset first.");
+    await db.prepare(`DELETE FROM village_mapping`).run();
+  }
+  const values=valid.map(()=>"(?,?,?,?,?,?)").join(",");
+  const params=valid.flat();
+  await db.prepare(`INSERT INTO village_mapping(panchayat_id,mvu_number,district_name,block_name,panchayat_name,updated_at)
+    VALUES ${values}
+    ON CONFLICT(panchayat_id) DO UPDATE SET
+      mvu_number=excluded.mvu_number,
+      district_name=excluded.district_name,
+      block_name=excluded.block_name,
+      panchayat_name=excluded.panchayat_name,
+      updated_at=excluded.updated_at`).bind(...params).run();
+  if(mode==="finish" || mode==="replace_finish"){
+    await logUpload(db,"mapping",originalName,valid.length,"success","Village Mapping upload completed.");
+  }
   return valid.length;
 }
 
-async function saveWeekOff(db,raw,originalName,masters){
-  if(!Array.isArray(raw)||!raw.length)throw new Error("Week Off file is empty.");
+async function saveWeekOffChunk(db,raw,originalName,masters,mode="chunk"){
+  if(!Array.isArray(raw)||!raw.length) throw new Error("Week Off batch is empty.");
   let headerRow=-1;
-  for(let i=0;i<Math.min(raw.length,15);i++){const h=(raw[i]||[]).map(norm);const hv=h.some(x=>["VEHICLE NUMBER","VEHICLE NO.","VEHICLE NO","MVU/GADI NUMBER","MVUNUMBER"].includes(x));const hw=h.some(x=>["WEEK OFF","WEEKOFF"].includes(x));if(hv&&hw){headerRow=i;break;}}
-  if(headerRow<0)throw new Error("Week Off file must contain Vehicle Number and Week Off columns.");
-  const header=raw[headerRow]||[]; const findCol=names=>header.findIndex(x=>names.includes(norm(x)));
-  const idx={block:findCol(["BLOCK","BLOCK / VEHICLE"]),district:findCol(["DISTRICT","DISTRICT NAME"]),vehicle:findCol(["VEHICLE NUMBER","VEHICLE NO.","VEHICLE NO","MVU/GADI NUMBER","MVUNUMBER"]),weekoff:findCol(["WEEK OFF","WEEKOFF"])};
-  if(idx.vehicle<0||idx.weekoff<0)throw new Error("Week Off file must contain Vehicle Number and Week Off columns.");
+  for(let i=0;i<Math.min(raw.length,15);i++){
+    const h=(raw[i]||[]).map(norm);
+    const hv=h.some(x=>["VEHICLE NUMBER","VEHICLE NO.","VEHICLE NO","MVU/GADI NUMBER","MVUNUMBER"].includes(x));
+    const hw=h.some(x=>["WEEK OFF","WEEKOFF"].includes(x));
+    if(hv&&hw){headerRow=i;break;}
+  }
+  if(headerRow<0) throw new Error("Week Off file must contain Vehicle Number and Week Off columns.");
+  const header=raw[headerRow]||[];
+  const findCol=names=>header.findIndex(x=>names.includes(norm(x)));
+  const idxs={
+    block:findCol(["BLOCK","BLOCK / VEHICLE"]),
+    district:findCol(["DISTRICT","DISTRICT NAME"]),
+    vehicle:findCol(["VEHICLE NUMBER","VEHICLE NO.","VEHICLE NO","MVU/GADI NUMBER","MVUNUMBER"]),
+    weekoff:findCol(["WEEK OFF","WEEKOFF"])
+  };
+  if(idxs.vehicle<0||idxs.weekoff<0) throw new Error("Week Off file must contain Vehicle Number and Week Off columns.");
   const mappingByVehicle=new Map(Object.values(masters.villageMapping).map(r=>[norm(r.mvu_number),r]));
-  let district="";const items=[];
-  for(let i=headerRow+1;i<raw.length;i++){const r=raw[i]||[];if(idx.district>=0&&clean(r[idx.district]))district=clean(r[idx.district]);const vehicle=clean(r[idx.vehicle]);if(!vehicle)continue;let block=idx.block>=0?clean(r[idx.block]):"";let rowDistrict=idx.district>=0?clean(r[idx.district]):district;const weekoff=clean(r[idx.weekoff]);if(!weekoff)continue;const m=mappingByVehicle.get(norm(vehicle));if(m){if(!rowDistrict)rowDistrict=clean(m.district_name);if(!block)block=clean(m.block_name);}items.push([vehicle,rowDistrict,block,weekoff,now()]);}
-  if(!items.length)throw new Error("No valid Week Off records found.");
-  await ensureSchema(db);
-  for(let i=0;i<items.length;i+=50){const stmts=items.slice(i,i+50).map(x=>db.prepare(`INSERT INTO week_off(vehicle_no,district,block,week_off,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(vehicle_no) DO UPDATE SET district=excluded.district,block=excluded.block,week_off=excluded.week_off,updated_at=excluded.updated_at`).bind(...x));await db.batch(stmts);}
-  await logUpload(db,"weekoff",originalName,items.length,"success",`Week Off master saved. ${items.length} vehicles processed in batches.`); return items.length;
+  let district=""; const items=[];
+  for(let i=headerRow+1;i<raw.length;i++){
+    const r=raw[i]||[];
+    if(idxs.district>=0&&clean(r[idxs.district])) district=clean(r[idxs.district]);
+    const vehicle=clean(r[idxs.vehicle]); if(!vehicle) continue;
+    let block=idxs.block>=0?clean(r[idxs.block]):"";
+    let rowDistrict=idxs.district>=0?clean(r[idxs.district]):district;
+    const weekoff=clean(r[idxs.weekoff]); if(!weekoff) continue;
+    const m=mappingByVehicle.get(norm(vehicle));
+    if(m){if(!rowDistrict)rowDistrict=clean(m.district_name);if(!block)block=clean(m.block_name);}
+    items.push([vehicle,rowDistrict,block,weekoff,now()]);
+  }
+  if(!items.length) return 0;
+  if(mode==="start"){
+    const existing=await db.prepare(`SELECT COUNT(*) AS c FROM week_off`).first();
+    if(Number(existing?.c||0)>0) throw new Error("Week Off Master is locked. Use Hard Reset first.");
+    await db.prepare(`DELETE FROM week_off`).run();
+  }
+  const values=items.map(()=>"(?,?,?,?,?)").join(",");
+  await db.prepare(`INSERT INTO week_off(vehicle_no,district,block,week_off,updated_at)
+    VALUES ${values}
+    ON CONFLICT(vehicle_no) DO UPDATE SET
+      district=excluded.district,
+      block=excluded.block,
+      week_off=excluded.week_off,
+      updated_at=excluded.updated_at`).bind(...items.flat()).run();
+  if(mode==="finish"){
+    await logUpload(db,"weekoff",originalName,items.length,"success","Week Off master upload completed.");
+  }
+  return items.length;
 }
 
 function excelDateToDate(v){if(v instanceof Date&&!isNaN(v))return v;if(typeof v==="number"){const p=XLSX.SSF.parse_date_code(v);if(p)return new Date(p.y,p.m-1,p.d,p.H||0,p.M||0,p.S||0);}const s=clean(v);if(!s)return null;const d=new Date(s.replace(" ","T"));if(!isNaN(d))return d;const m=s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);return m?new Date(Number(m[3]),Number(m[2])-1,Number(m[1])):null;}
@@ -104,12 +156,28 @@ async function api(request,env){
     return json({ok:true,mappingCount,weekOffCount,uniqueDistrictCount:d.size,uniqueBlockCount:b.size,mastersLocked:mappingCount>0&&weekOffCount>0,masterUploadAvailable:mappingCount===0||weekOffCount===0,latest,logs:logs.results||[]});
   }
   if(path==="/api/upload/mapping"&&request.method==="POST"){
-    try{const masters=await loadMasters(db);if(Object.keys(masters.villageMapping).length)throw new Error("Village Mapping is locked. Use Hard Reset first.");const body=await bodyJson(request);const count=await saveMapping(db,body.rows,clean(body.filename)||"mapping.xlsx");return json({ok:true,message:`Village Mapping saved. ${count} rows processed in batches.`});}
-    catch(e){await logUpload(db,"mapping","",0,"error",e.message);return json({ok:false,error:e.message},400);}
+    try{
+      const body=await bodyJson(request);
+      const mode=clean(body.mode)||"chunk";
+      const rows=Array.isArray(body.rows)?body.rows:[];
+      const count=await saveMappingChunk(db,rows,clean(body.filename)||"mapping.xlsx",mode);
+      return json({ok:true,count,message:mode==="finish"?"Village Mapping upload completed.":`Village Mapping batch saved: ${count} rows.`});
+    }catch(e){
+      console.error("Mapping upload error:",e);
+      return json({ok:false,error:e.message||"Village Mapping upload failed."},400);
+    }
   }
   if(path==="/api/upload/weekoff"&&request.method==="POST"){
-    try{const masters=await loadMasters(db);if(Object.keys(masters.weekOff).length)throw new Error("Week Off Master is locked. Use Hard Reset first.");const body=await bodyJson(request);const count=await saveWeekOff(db,body.rows,clean(body.filename)||"weekoff.xlsx",masters);return json({ok:true,message:`Week Off master saved. ${count} vehicles processed in batches.`});}
-    catch(e){await logUpload(db,"weekoff","",0,"error",e.message);return json({ok:false,error:e.message},400);}
+    try{
+      const body=await bodyJson(request);
+      const mode=clean(body.mode)||"chunk";
+      const masters=await loadMasters(db);
+      const count=await saveWeekOffChunk(db,Array.isArray(body.rows)?body.rows:[],clean(body.filename)||"weekoff.xlsx",masters,mode);
+      return json({ok:true,count,message:mode==="finish"?"Week Off upload completed.":`Week Off batch saved: ${count} rows.`});
+    }catch(e){
+      console.error("Week Off upload error:",e);
+      return json({ok:false,error:e.message||"Week Off upload failed."},400);
+    }
   }
   if(path==="/api/generate"&&request.method==="POST"){
     try{const masters=await loadMasters(db);if(!Object.keys(masters.villageMapping).length||!Object.keys(masters.weekOff).length)throw new Error("Please upload Village Mapping and Week Off master first.");const body=await bodyJson(request);const report=await processDetailed(db,body.rows,clean(body.filename)||"DetailedReport.xlsx",masters);return json({ok:true,report});}
