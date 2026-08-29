@@ -68,9 +68,8 @@ async function logUpload(db, store, kind, filename, rowCount, status, message = 
   await saveStore(db, store);
 }
 
-async function saveMapping(db, store, buffer, originalName) {
-  const rows = readSheetRows(buffer, "UpdateVillageMapping");
-  if (!rows.length) throw new Error("Village mapping sheet is empty.");
+async function saveMapping(db, store, rows, originalName) {
+  if (!Array.isArray(rows) || !rows.length) throw new Error("Village mapping sheet is empty.");
   for (const c of ["PanchayatID", "MVUNumber"]) if (!(c in rows[0])) throw new Error(`Missing column: ${c}`);
   let count = 0;
   for (const r of rows) {
@@ -82,11 +81,8 @@ async function saveMapping(db, store, buffer, originalName) {
   return count;
 }
 
-async function saveWeekOff(db, store, buffer, originalName) {
-  const wb=XLSX.read(buffer,{type:"array",cellDates:true});
-  const sheetName=wb.SheetNames.includes("Daily Data Entry")?"Daily Data Entry":wb.SheetNames[0];
-  const ws=wb.Sheets[sheetName]; if(!ws) throw new Error("Week Off sheet not found.");
-  const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:""}); if(!raw.length) throw new Error("Week Off file is empty.");
+async function saveWeekOff(db, store, raw, originalName) {
+  if (!Array.isArray(raw) || !raw.length) throw new Error("Week Off file is empty.");
   let headerRow=-1;
   for(let i=0;i<Math.min(raw.length,15);i++){
     const h=(raw[i]||[]).map(x=>norm(x));
@@ -95,7 +91,8 @@ async function saveWeekOff(db, store, buffer, originalName) {
     if(hasVehicle&&hasWeekOff){headerRow=i;break;}
   }
   if(headerRow<0) throw new Error("Week Off file must contain Vehicle Number and Week Off columns.");
-  const header=raw[headerRow]||[]; const findCol=names=>header.findIndex(x=>names.includes(norm(x)));
+  const header=raw[headerRow]||[];
+  const findCol=names=>header.findIndex(x=>names.includes(norm(x)));
   const idx={block:findCol(["BLOCK","BLOCK / VEHICLE"]),district:findCol(["DISTRICT","DISTRICT NAME"]),vehicle:findCol(["VEHICLE NUMBER","VEHICLE NO.","VEHICLE NO","MVU/GADI NUMBER","MVUNUMBER"]),weekoff:findCol(["WEEK OFF","WEEKOFF"])};
   if(idx.vehicle<0||idx.weekoff<0) throw new Error("Week Off file must contain Vehicle Number and Week Off columns.");
   const mappingByVehicle=new Map(Object.values(store.villageMapping).map(r=>[norm(r.mvu_number),r]));
@@ -103,13 +100,18 @@ async function saveWeekOff(db, store, buffer, originalName) {
   for(let i=headerRow+1;i<raw.length;i++){
     const r=raw[i]||[]; if(idx.district>=0&&clean(r[idx.district])) district=clean(r[idx.district]);
     const vehicle=clean(r[idx.vehicle]); if(!vehicle) continue;
-    let block=idx.block>=0?clean(r[idx.block]):""; let rowDistrict=idx.district>=0?clean(r[idx.district]):district; const weekoff=clean(r[idx.weekoff]); if(!weekoff) continue;
-    const m=mappingByVehicle.get(norm(vehicle)); if(m){if(!rowDistrict)rowDistrict=clean(m.district_name);if(!block)block=clean(m.block_name);}
+    let block=idx.block>=0?clean(r[idx.block]):"";
+    let rowDistrict=idx.district>=0?clean(r[idx.district]):district;
+    const weekoff=clean(r[idx.weekoff]); if(!weekoff) continue;
+    const m=mappingByVehicle.get(norm(vehicle));
+    if(m){if(!rowDistrict)rowDistrict=clean(m.district_name);if(!block)block=clean(m.block_name);}
     items.push({vehicle,district:rowDistrict,block,weekoff});
   }
   if(!items.length) throw new Error("No valid Week Off records found.");
   for(const x of items) store.weekOff[x.vehicle]={vehicle_no:x.vehicle,district:x.district,block:x.block,week_off:x.weekoff,updated_at:now()};
-  await saveStore(db,store); await logUpload(db,store,"weekoff",originalName,items.length,"success","Week Off master saved/updated permanently."); return items.length;
+  await saveStore(db,store);
+  await logUpload(db,store,"weekoff",originalName,items.length,"success","Week Off master saved/updated permanently.");
+  return items.length;
 }
 
 function ticketAudio(row) {
@@ -118,8 +120,8 @@ function ticketAudio(row) {
   return norm(row.SubStatus)==="VISITED FARMER"?"Attend":"Not Attend";
 }
 
-async function processDetailed(db, store, buffer, originalName) {
-  const rows=readSheetRows(buffer,"DetailedReport"); if(!rows.length) throw new Error("DetailedReport sheet is empty.");
+async function processDetailed(db, store, rows, originalName) {
+  if(!Array.isArray(rows) || !rows.length) throw new Error("DetailedReport sheet is empty.");
   const required=["Panchayat ID","CreatedDateTime","LevelType","Type","CloseRemarks","TicketStatus","SubStatus"];
   for(const c of required) if(!(c in rows[0])) throw new Error(`Detailed Report missing column: ${c}`);
   const filtered=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY"&&!norm(r.CloseRemarks).includes("WT"));
@@ -149,7 +151,11 @@ async function processDetailed(db, store, buffer, originalName) {
 }
 
 function json(data,status=200){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}});}
-async function getFile(request){const form=await request.formData();const file=form.get("file");if(!(file instanceof File))throw new Error("File is required.");if(file.size>MAX_FILE_SIZE)throw new Error("File is larger than 50 MB.");return {buffer:await file.arrayBuffer(),name:file.name||"uploaded.xlsx"};}
+async function getJsonBody(request) {
+  const body = await request.json();
+  if (!body || typeof body !== "object") throw new Error("JSON body is required.");
+  return body;
+}
 
 async function api(request,env){
   const db=env.DB; const url=new URL(request.url); const path=url.pathname; let store=await loadStore(db);
@@ -157,16 +163,37 @@ async function api(request,env){
     const latest=store.generatedReports[0];return json({ok:true,mappingCount:Object.keys(store.villageMapping).length,weekOffCount:Object.keys(store.weekOff).length,mastersLocked:Object.keys(store.villageMapping).length>0&&Object.keys(store.weekOff).length>0,latest:latest?latest.report_json:null,logs:store.uploadLog.slice(0,8)});
   }
   if(path==="/api/upload/mapping"&&request.method==="POST"){
-    try{if(Object.keys(store.villageMapping).length>0)throw new Error("Village Mapping is locked. Use Hard Reset first.");const f=await getFile(request);const count=await saveMapping(db,store,f.buffer,f.name);return json({ok:true,message:`Village Mapping saved. ${count} source rows processed.`});}
-    catch(e){await logUpload(db,store,"mapping","",0,"error",e.message);return json({ok:false,error:e.message},400);}
+    try{
+      if(Object.keys(store.villageMapping).length>0) throw new Error("Village Mapping is locked. Use Hard Reset first.");
+      const body=await getJsonBody(request);
+      const count=await saveMapping(db,store,body.rows,clean(body.filename)||"mapping.xlsx");
+      return json({ok:true,message:`Village Mapping saved. ${count} source rows processed.`});
+    }catch(e){
+      await logUpload(db,store,"mapping","",0,"error",e.message);
+      return json({ok:false,error:e.message},400);
+    }
   }
   if(path==="/api/upload/weekoff"&&request.method==="POST"){
-    try{if(Object.keys(store.weekOff).length>0)throw new Error("Week Off Master is locked. Use Hard Reset first.");const f=await getFile(request);const count=await saveWeekOff(db,store,f.buffer,f.name);return json({ok:true,message:`Week Off master saved. ${count} vehicles processed.`});}
-    catch(e){await logUpload(db,store,"weekoff","",0,"error",e.message);return json({ok:false,error:e.message},400);}
+    try{
+      if(Object.keys(store.weekOff).length>0) throw new Error("Week Off Master is locked. Use Hard Reset first.");
+      const body=await getJsonBody(request);
+      const count=await saveWeekOff(db,store,body.rows,clean(body.filename)||"weekoff.xlsx");
+      return json({ok:true,message:`Week Off master saved. ${count} vehicles processed.`});
+    }catch(e){
+      await logUpload(db,store,"weekoff","",0,"error",e.message);
+      return json({ok:false,error:e.message},400);
+    }
   }
   if(path==="/api/generate"&&request.method==="POST"){
-    try{if(!Object.keys(store.villageMapping).length||!Object.keys(store.weekOff).length)throw new Error("Please upload Village Mapping and Week Off master first.");const f=await getFile(request);const report=await processDetailed(db,store,f.buffer,f.name);return json({ok:true,report});}
-    catch(e){await logUpload(db,store,"detailed","",0,"error",e.message);return json({ok:false,error:e.message},400);}
+    try{
+      if(!Object.keys(store.villageMapping).length||!Object.keys(store.weekOff).length) throw new Error("Please upload Village Mapping and Week Off master first.");
+      const body=await getJsonBody(request);
+      const report=await processDetailed(db,store,body.rows,clean(body.filename)||"DetailedReport.xlsx");
+      return json({ok:true,report});
+    }catch(e){
+      await logUpload(db,store,"detailed","",0,"error",e.message);
+      return json({ok:false,error:e.message},400);
+    }
   }
   if(path==="/api/report"&&request.method==="GET"){
     const latest=store.generatedReports[0];if(!latest)return json({ok:false,error:"No report generated yet."},404);return json({ok:true,report:latest.report_json});

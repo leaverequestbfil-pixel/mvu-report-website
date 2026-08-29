@@ -1604,289 +1604,117 @@ function calculateUniqueCounts(serverState){
    UPLOAD MASTER
 ========================================================= */
 
-async function uploadMaster(
-  inputId,
-  url
-){
-
-  const input =
-    $(inputId);
-
-
-  if(
-    !input ||
-    !input.files ||
-    !input.files[0]
-  ){
-
-    show(
-      "Please select an Excel file first.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  const file =
-    input.files[0];
-
-
-  const formData =
-    new FormData();
-
-
-  formData.append(
-    "file",
-    file
-  );
-
-
-  try{
-
-    show(
-      "Uploading " +
-      file.name +
-      "…",
-      "info"
-    );
-
-
-    const result =
-      await apiJSON(
-        url,
-        {
-          method:"POST",
-          body:formData
-        }
-      );
-
-
-    show(
-      result.message ||
-      "Upload completed successfully.",
-      "success"
-    );
-
-
-    input.value =
-      "";
-
-
-    /*
-      Status reload.
-    */
-
-    await loadStatus();
-
-
-    /*
-      Reset के बाद upload किया गया है,
-      इसलिए master area खुला रखें।
-    */
-
-    showMasterArea();
-
-
-  }
-  catch(error){
-
-    console.error(
-      "Master Upload Error:",
-      error
-    );
-
-
-    show(
-      error.message,
-      "error"
-    );
-
-  }
-
+function readWorkbook(file, sheetName, mode="json"){
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type:"array", cellDates:true });
+  const actualSheet = sheetName && wb.SheetNames.includes(sheetName)
+    ? sheetName
+    : wb.SheetNames[0];
+  if(!actualSheet) throw new Error("Excel file has no worksheet.");
+  const ws = wb.Sheets[actualSheet];
+  if(!ws) throw new Error(`Sheet not found: ${sheetName || actualSheet}`);
+  if(mode==="raw") return XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+  return XLSX.utils.sheet_to_json(ws,{defval:""});
 }
 
+async function sendRows(url, file, rows){
+  return apiJSON(url,{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Accept":"application/json"
+    },
+    body:JSON.stringify({
+      filename:file.name,
+      rows
+    })
+  });
+}
 
-
-/* =========================================================
-   GENERATE REPORT
-========================================================= */
-
-async function generate(){
-
-  /*
-    पहले status check
-  */
-
-  if(
-    !state
-  ){
-
-    await loadStatus();
-
-  }
-
-
-  /*
-    Master data server में होना चाहिए।
-  */
-
-  if(
-    !state ||
-    !Number(
-      state.mappingCount || 0
-    ) ||
-    !Number(
-      state.weekOffCount || 0
-    )
-  ){
-
-    show(
-      "Please upload Village Mapping and Week Off master first. If you want to upload them again, click Hard Reset.",
-      "error"
-    );
-
+async function uploadMaster(inputId,url){
+  const input=$(inputId);
+  if(!input?.files?.[0]){
+    show("Please select an Excel file first.","error");
     return;
-
   }
-
-
-  const input =
-    $("detailedFile");
-
-
-  if(
-    !input.files ||
-    !input.files[0]
-  ){
-
-    show(
-      "Please select DetailedReport.xlsx first.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  const file =
-    input.files[0];
-
-
-  const formData =
-    new FormData();
-
-
-  formData.append(
-    "file",
-    file
-  );
-
-
-  const button =
-    $("generateBtn");
-
-
-  const oldText =
-    button.textContent;
-
-
+  const file=input.files[0];
   try{
+    show("Reading "+file.name+" in your browser…","info");
 
-    button.disabled =
-      true;
-
-
-    button.textContent =
-      "Processing…";
-
-
-    show(
-      "Processing actual Excel data…",
-      "info"
-    );
-
-
-    const result =
-      await apiJSON(
-        "/api/generate",
-        {
-          method:"POST",
-          body:formData
-        }
+    let rows;
+    if(url==="/api/upload/mapping"){
+      rows=await readWorkbook(file,"UpdateVillageMapping","json");
+    }else{
+      rows=await readWorkbook(file,
+        "Daily Data Entry",
+        "raw"
       );
-
-
-    if(
-      !result.ok
-    ){
-
-      throw new Error(
-        result.error ||
-        "Report generation failed."
-      );
-
     }
 
+    if(!rows.length) throw new Error("The selected Excel sheet is empty.");
 
-    input.value =
-      "";
+    show("Sending processed data to server…","info");
+    const result=await sendRows(url,file,rows);
 
-
-    show(
-      "Report generated successfully. Opening Result Page…",
-      "success"
-    );
-
-
-    /*
-      थोड़ी देर ताकि message
-      दिखाई दे।
-    */
-
-    setTimeout(
-      () => {
-
-        window.location.href =
-          "/result.html";
-
-      },
-      350
-    );
-
-
+    show(result.message||"Upload completed successfully.","success");
+    input.value="";
+    await loadStatus();
+    showMasterArea();
+  }catch(error){
+    console.error("Master Upload Error:",error);
+    show(error.message||"Upload failed.","error");
   }
-  catch(error){
-
-    console.error(
-      "Generate Error:",
-      error
-    );
-
-
-    show(
-      error.message,
-      "error"
-    );
-
-
-  }
-  finally{
-
-    button.disabled =
-      false;
-
-
-    button.textContent =
-      oldText;
-
-  }
-
 }
 
+async function generate(){
+  if(!state) await loadStatus();
 
+  if(!state ||
+     !Number(state.mappingCount||0) ||
+     !Number(state.weekOffCount||0)){
+    show("Please upload Village Mapping and Week Off master first. If you want to upload them again, click Hard Reset.","error");
+    return;
+  }
+
+  const input=$("detailedFile");
+  if(!input?.files?.[0]){
+    show("Please select DetailedReport.xlsx first.","error");
+    return;
+  }
+
+  const file=input.files[0];
+  const button=$("generateBtn");
+  const oldText=button.textContent;
+
+  try{
+    button.disabled=true;
+    button.textContent="Reading Excel…";
+    show("Reading DetailedReport.xlsx in your browser…","info");
+
+    const rows=await readWorkbook(file,"DetailedReport","json");
+    if(!rows.length) throw new Error("DetailedReport sheet is empty.");
+
+    button.textContent="Sending data…";
+    show("Excel processed in browser. Sending report data…","info");
+
+    const result=await sendRows("/api/generate",file,rows);
+
+    if(!result.ok) throw new Error(result.error||"Report generation failed.");
+
+    input.value="";
+    show("Report generated successfully. Opening Result Page…","success");
+
+    setTimeout(()=>{
+      window.location.href="/result.html";
+    },350);
+  }catch(error){
+    console.error("Generate Error:",error);
+    show(error.message||"Report generation failed.","error");
+  }finally{
+    button.disabled=false;
+    button.textContent=oldText;
+  }
+}
 
 /* =========================================================
    HARD RESET
