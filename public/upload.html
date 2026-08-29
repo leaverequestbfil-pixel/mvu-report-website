@@ -1081,18 +1081,6 @@ input[type="file"]:disabled{
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
-function setUploadProgress(label,current,total){
-  const pct=total ? Math.round(current/total*100) : 0;
-  const el=document.getElementById("uploadProgress");
-  if(el){
-    el.style.display="block";
-    const bar=el.querySelector(".progress-bar")||el.querySelector("[role='progressbar']");
-    if(bar){bar.style.width=pct+"%";bar.textContent=pct+"%";}
-    const txt=el.querySelector(".progress-text");
-    if(txt) txt.textContent=`${label}: ${current} / ${total} rows (${pct}%)`;
-  }
-}
-<script>
 const $=id=>document.getElementById(id);
 let state=null;
 function show(msg,type='info'){const n=$('notice');if(!n)return;n.textContent=msg;n.className='notice '+type;}
@@ -1148,73 +1136,56 @@ function rowsFromSheet(file,sheetName,asArrays=false){
   });
 }
 
-async function sendMVUBatches(rows,filename){
-  if(!Array.isArray(rows) || !rows.length) throw new Error("Excel file is empty.");
+async function sendMVUBatches(filename,rows){
+  if(!Array.isArray(rows)||rows.length<2) throw new Error('MVU Detail Excel must contain a header row and at least one data row.');
 
-  // Support both sheet_to_json({header:1}) and sheet_to_json() formats.
-  let header, dataRows;
-  if(Array.isArray(rows[0])){
-    header = rows[0].map(v=>String(v ?? "").trim());
-    dataRows = rows.slice(1);
-  }else if(rows[0] && typeof rows[0]==="object"){
-    header = Object.keys(rows[0]);
-    dataRows = rows;
-  }else{
-    throw new Error("Invalid Excel data format.");
-  }
-
-  const normHeader = header.map(v=>String(v).trim().toUpperCase().replace(/[._\s-]+/g,""));
-  const findHeader = names => {
-    const wanted = names.map(v=>v.toUpperCase().replace(/[._\s-]+/g,""));
-    return normHeader.findIndex(v=>wanted.includes(v));
+  // rows is sheet_to_json({header:1}) => [header, data...]
+  const header=(rows[0]||[]).map(v=>String(v??'').replace(/^\uFEFF/,'').trim());
+  const normalize=s=>String(s??'').trim().toUpperCase().replace(/[._\s-]+/g,'');
+  const findCol=names=>{
+    const wanted=names.map(normalize);
+    return header.findIndex(h=>wanted.includes(normalize(h)));
   };
 
-  const districtIdx=findHeader(["DISTRICT","DISTRICT NAME"]);
-  const blockIdx=findHeader(["BLOCK","BLOCK NAME"]);
-  const mvuIdx=findHeader(["MVU NUMBER","MVUNUMBER","MVU NO","MVU NO.","VEHICLE NUMBER","VEHICLE NO","VEHICLE NO."]);
-  const weekoffIdx=findHeader(["WEEK OFF","WEEKOFF"]);
+  const idx={
+    district:findCol(['District','District Name']),
+    block:findCol(['Block','Block Name']),
+    mvu:findCol(['MVU Number','MVUNumber','MVU No','MVU No.','Vehicle Number','Vehicle No','Vehicle No.']),
+    weekoff:findCol(['Week Off','WeekOff'])
+  };
 
-  if(mvuIdx<0) throw new Error("MVU Detail file must contain MVU Number column. Required format: District | Block | MVU Number | Week Off.");
-  if(districtIdx<0) throw new Error("MVU Detail file must contain District column.");
-  if(blockIdx<0) throw new Error("MVU Detail file must contain Block column.");
-  if(weekoffIdx<0) throw new Error("MVU Detail file must contain Week Off column.");
+  if(idx.mvu<0) throw new Error('MVU Detail file must contain MVU Number column. Required format: District | Block | MVU Number | Week Off.');
+  if(idx.district<0) throw new Error('MVU Detail file must contain District column.');
+  if(idx.block<0) throw new Error('MVU Detail file must contain Block column.');
+  if(idx.weekoff<0) throw new Error('MVU Detail file must contain Week Off column.');
 
-  const normalized=[];
-  for(const row of dataRows){
-    let get = idx => Array.isArray(row) ? row[idx] : row[header[idx]];
-    const mvu=String(get(mvuIdx) ?? "").trim();
-    if(!mvu) continue;
-    normalized.push([
-      String(get(districtIdx) ?? "").trim(),
-      String(get(blockIdx) ?? "").trim(),
-      mvu,
-      String(get(weekoffIdx) ?? "").trim()
-    ]);
-  }
-
-  if(!normalized.length) throw new Error("No valid MVU Detail rows found.");
+  const cleanRows=rows.slice(1).filter(row=>Array.isArray(row)&&String(row[idx.mvu]??'').trim()!=='');
+  if(!cleanRows.length) throw new Error('No valid MVU Detail rows found.');
 
   const batchSize=100;
-  const total=normalized.length;
   let uploaded=0;
-  setUploadProgress("MVU Detail",0,total);
+  const batches=Math.ceil(cleanRows.length/batchSize);
 
-  for(let i=0;i<total;i+=batchSize){
-    const batch=[["District","Block","MVU Number","Week Off"],...normalized.slice(i,i+batchSize)];
-    const mode=i===0 ? (i+batchSize>=total ? "replace_finish" : "start")
-                     : (i+batchSize>=total ? "finish" : "chunk");
+  for(let b=0;b<batches;b++){
+    const batchRows=[header,...cleanRows.slice(b*batchSize,(b+1)*batchSize)];
+    const mode=b===0&&b===batches-1?'replace_finish':(b===0?'start':(b===batches-1?'finish':'chunk'));
 
-    const res=await apiJSON("/api/upload/mvudetail",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({rows:batch,filename,mode})
+    const r=await fetch('/api/upload/mvudetail',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({filename,rows:batchRows,mode})
     });
 
-    uploaded=Math.min(i+batchSize,total);
-    setUploadProgress("MVU Detail",uploaded,total);
+    const text=await r.text();
+    let x;
+    try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response on MVU Detail batch '+(b+1)+'.');}
+    if(!r.ok||!x.ok) throw new Error(x.error||`MVU Detail upload failed on batch ${b+1}.`);
+
+    uploaded+=cleanRows.slice(b*batchSize,(b+1)*batchSize).length;
+    setProgress(uploaded,cleanRows.length,'Uploading MVU Details');
   }
 
-  return {count:uploaded};
+  return uploaded;
 }
 
 async function uploadMVUDetail(){
