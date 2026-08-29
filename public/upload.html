@@ -1214,16 +1214,22 @@ async function loadStatus(){
     const r=await fetch('/api/status',{cache:'no-store'});
     const x=await r.json();
     state=x;
-    $('mappingCount').textContent=Number(x.mappingCount||0).toLocaleString();
-    $('weekOffCount').textContent=Number(x.weekOffCount||0).toLocaleString();
-    const mLocked=Number(x.mappingCount||0)>0, wLocked=Number(x.weekOffCount||0)>0;
-    $('mappingState').textContent=mLocked?'🔒 Locked':'Upload required';
-    $('weekOffState').textContent=wLocked?'🔒 Locked':'Upload required';
+    // Only update elements that actually exist on this page.
+    const mappingCount=Number(x.mappingCount||0);
+    const weekOffCount=Number(x.weekOffCount||0);
+    const set=(id,value)=>{const el=$(id); if(el) el.textContent=value;};
+    set('mappingCount',mappingCount.toLocaleString());
+    set('weekOffCount',weekOffCount.toLocaleString());
+    set('districtCount',mappingCount.toLocaleString());
+    set('blockCount','—');
+    set('villageCount',mappingCount.toLocaleString());
+    set('mappingState',mappingCount>0?'🔒 Locked':'Upload required');
+    set('weekOffState',weekOffCount>0?'🔒 Locked':'Upload required');
     if(x.latest){
-      $('latestDate').textContent=x.latest.firstDateDisplay+(x.latest.secondDateDisplay?' → '+x.latest.secondDateDisplay:'');
-      $('latestSource').textContent=x.latest.sourceFile||'';
+      set('latestDate',(x.latest.firstDateDisplay||'')+(x.latest.secondDateDisplay?' → '+x.latest.secondDateDisplay:''));
+      set('latestSource',x.latest.sourceFile||'');
     } else {
-      $('latestDate').textContent='—'; $('latestSource').textContent='Not generated';
+      set('latestDate','—'); set('latestSource','Not generated');
     }
   }catch(e){show('Unable to read server status: '+e.message,'error');}
 }
