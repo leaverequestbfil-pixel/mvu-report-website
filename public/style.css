@@ -13,3 +13,14 @@
 .report-table th,.report-table td{width:auto;min-width:0;max-width:none;white-space:nowrap;}
 .report-table .date1-end{border-right:4px solid var(--green)!important;}
 .result-content .summary{min-width:760px;}
+
+/* Upload progress */
+.cards.two{grid-template-columns:repeat(2,1fr)}
+.upload-progress{margin:0 16px 12px;padding:12px 14px;background:#fff;border:1px solid #dfe5e8;border-radius:8px;box-shadow:0 2px 8px #00000008}
+.upload-progress.hidden{display:none}
+.upload-progress-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;color:#26343e;margin-bottom:8px}
+.upload-progress-head span{color:#168052;font-weight:900}
+.upload-progress-track{height:10px;background:#e9eef0;border-radius:999px;overflow:hidden}
+.upload-progress-bar{height:100%;width:0;background:#168052;border-radius:999px;transition:width .15s ease}
+.upload-progress-text{margin-top:7px;color:#7b858d;font-size:10px;text-align:right}
+@media(max-width:650px){.cards.two{grid-template-columns:1fr}}
