@@ -49,18 +49,16 @@ async function saveMappingChunk(db, rows, originalName, mode="chunk"){
     if(Number(existing?.c||0)>0) throw new Error("Village Mapping is locked. Use Hard Reset first.");
     await db.prepare(`DELETE FROM village_mapping`).run();
   }
-  // IMPORTANT: use D1 batch with one prepared statement per row.
-  // This avoids SQLite's SQL-variable limit (multi-row INSERT can exceed it).
-  const statements=valid.map(r=>db.prepare(`INSERT INTO village_mapping
-    (panchayat_id,mvu_number,district_name,block_name,panchayat_name,updated_at)
-    VALUES (?,?,?,?,?,?)
+  const values=valid.map(()=>"(?,?,?,?,?,?)").join(",");
+  const params=valid.flat();
+  await db.prepare(`INSERT INTO village_mapping(panchayat_id,mvu_number,district_name,block_name,panchayat_name,updated_at)
+    VALUES ${values}
     ON CONFLICT(panchayat_id) DO UPDATE SET
       mvu_number=excluded.mvu_number,
       district_name=excluded.district_name,
       block_name=excluded.block_name,
       panchayat_name=excluded.panchayat_name,
-      updated_at=excluded.updated_at`).bind(...r));
-  for(let i=0;i<statements.length;i+=10){await db.batch(statements.slice(i,i+10));}
+      updated_at=excluded.updated_at`).bind(...params).run();
   if(mode==="finish" || mode==="replace_finish"){
     await logUpload(db,"mapping",originalName,valid.length,"success","Village Mapping upload completed.");
   }
@@ -105,16 +103,14 @@ async function saveWeekOffChunk(db,raw,originalName,masters,mode="chunk"){
     if(Number(existing?.c||0)>0) throw new Error("Week Off Master is locked. Use Hard Reset first.");
     await db.prepare(`DELETE FROM week_off`).run();
   }
-  // D1 batch: one prepared statement per row, avoiding the SQLite variable limit.
-  const statements=items.map(r=>db.prepare(`INSERT INTO week_off
-    (vehicle_no,district,block,week_off,updated_at)
-    VALUES (?,?,?,?,?)
+  const values=items.map(()=>"(?,?,?,?,?)").join(",");
+  await db.prepare(`INSERT INTO week_off(vehicle_no,district,block,week_off,updated_at)
+    VALUES ${values}
     ON CONFLICT(vehicle_no) DO UPDATE SET
       district=excluded.district,
       block=excluded.block,
       week_off=excluded.week_off,
-      updated_at=excluded.updated_at`).bind(...r));
-  for(let i=0;i<statements.length;i+=10){await db.batch(statements.slice(i,i+10));}
+      updated_at=excluded.updated_at`).bind(...items.flat()).run();
   if(mode==="finish"){
     await logUpload(db,"weekoff",originalName,items.length,"success","Week Off master upload completed.");
   }
@@ -206,4 +202,6 @@ async function api(request,env){
   return json({ok:false,error:`API route not found: ${request.method} ${path}`},404);
 }
 
-export default {async fetch(request,env){const url=new URL(request.url);if(url.pathname.startsWith("/api/")){try{return await api(request,env);}catch(e){console.error(e);return json({ok:false,error:e?.message||"Server error"},500);}}return env.ASSETS.fetch(request);}};
+const MAINTENANCE_MODE = true;
+
+export default {async fetch(request,env){const url=new URL(request.url); if(MAINTENANCE_MODE && !url.pathname.startsWith("/api/reset/hard")){ return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Maintenance</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef3f5;font-family:Arial;color:#17352b}.box{text-align:center;background:#fff;padding:42px 32px;border-radius:14px;box-shadow:0 8px 30px #0001;max-width:520px}h1{margin:0 0 12px;color:#148b58}p{color:#66756f;line-height:1.6}</style></head><body><div class="box"><h1>Website Temporarily Unavailable</h1><p>कुछ आवश्यक बदलाव किए जा रहे हैं। कृपया कुछ समय बाद पुनः प्रयास करें।</p></div></body></html>`,{status:503,headers:{"content-type":"text/html;charset=UTF-8","cache-control":"no-store"}}); } if(url.pathname.startsWith("/api/")){try{return await api(request,env);}catch(e){console.error(e);return json({ok:false,error:e?.message||"Server error"},500);}}return env.ASSETS.fetch(request);}};
