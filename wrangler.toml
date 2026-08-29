@@ -1,0 +1,13 @@
+name = "mvu-report-website"
+main = "src/index.js"
+compatibility_date = "2026-08-29"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mvu-report-db"
+database_id = "5e13ef1e-30b1-4ad9-b2c4-77efc1867654"

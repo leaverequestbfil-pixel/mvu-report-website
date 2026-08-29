@@ -6,7 +6,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "deploy": "npx wrangler deploy",
+    "cf:dev": "npx wrangler dev"
   },
   "dependencies": {
     "express": "4.21.2",
