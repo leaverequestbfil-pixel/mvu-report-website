@@ -1,0 +1,16 @@
+{
+  "name": "mvu-wise-daily-report",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Online MVU Wise Daily Report web application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "4.21.2",
+    "multer": "^2.0.2",
+    "xlsx": "^0.18.5"
+  }
+}

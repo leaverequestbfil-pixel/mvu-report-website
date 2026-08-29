@@ -1,0 +1,2225 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>MVU Wise Daily Report</title>
+
+<link rel="stylesheet" href="/style.css">
+
+<style>
+
+/* =========================================================
+   PAGE
+========================================================= */
+
+html,
+body{
+  margin:0;
+  padding:0;
+  min-height:100%;
+}
+
+body{
+  font-family:Arial,Helvetica,sans-serif;
+  background:#eef2f3;
+  color:#1f2933;
+}
+
+
+/* =========================================================
+   MAIN SHELL
+========================================================= */
+
+.shell{
+  width:100%;
+  min-height:100vh;
+}
+
+
+/* =========================================================
+   TOP BAR
+========================================================= */
+
+.topbar{
+
+  width:100%;
+
+  min-height:58px;
+
+  background:#198754;
+
+  color:#fff;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:space-between;
+
+  box-sizing:border-box;
+
+  padding:8px 18px;
+
+  gap:20px;
+}
+
+
+.top-brand{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:10px;
+
+  min-width:0;
+}
+
+
+.brand-icon{
+
+  width:38px;
+
+  height:38px;
+
+  border-radius:10px;
+
+  background:rgba(255,255,255,.15);
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  font-size:22px;
+
+  flex-shrink:0;
+}
+
+
+.top-brand h1{
+
+  margin:0;
+
+  font-size:18px;
+
+  line-height:1.1;
+
+  font-weight:800;
+}
+
+
+.top-brand p{
+
+  margin:3px 0 0;
+
+  font-size:9px;
+
+  font-weight:600;
+
+  opacity:.95;
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+.topbar nav{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:7px;
+
+  flex-wrap:nowrap;
+}
+
+
+.topbar nav a,
+.topbar nav button{
+
+  height:32px;
+
+  padding:0 13px;
+
+  border-radius:6px;
+
+  border:1px solid rgba(255,255,255,.18);
+
+  background:rgba(255,255,255,.08);
+
+  color:#fff;
+
+  font-size:10px;
+
+  font-weight:700;
+
+  text-decoration:none;
+
+  display:inline-flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  white-space:nowrap;
+
+  cursor:pointer;
+
+  box-sizing:border-box;
+}
+
+
+.topbar nav a:hover{
+
+  background:rgba(255,255,255,.16);
+}
+
+
+.topbar nav .nav-danger{
+
+  background:#dc3545;
+
+  border-color:#dc3545;
+}
+
+
+.topbar nav .nav-danger:hover{
+
+  background:#bb2d3b;
+}
+
+
+/* =========================================================
+   CONTENT
+========================================================= */
+
+.content{
+
+  width:min(1180px,94%);
+
+  margin:0 auto;
+
+  padding:12px 0 30px;
+}
+
+
+/* =========================================================
+   SUMMARY CARDS
+========================================================= */
+
+.cards{
+
+  display:grid;
+
+  gap:1px;
+
+  background:#dfe4e7;
+
+  margin-bottom:12px;
+}
+
+
+.cards.three{
+
+  grid-template-columns:repeat(3,1fr);
+}
+
+
+.status-card{
+
+  background:#fff;
+
+  min-height:58px;
+
+  padding:9px 10px;
+
+  box-sizing:border-box;
+
+  display:flex;
+
+  flex-direction:column;
+
+  align-items:center;
+
+  justify-content:center;
+
+  text-align:center;
+}
+
+
+.status-card span{
+
+  font-size:9px;
+
+  color:#707980;
+
+  margin-bottom:3px;
+}
+
+
+.status-card strong{
+
+  font-size:15px;
+
+  line-height:1.1;
+
+  color:#117a4b;
+
+  font-weight:800;
+}
+
+
+.status-card small{
+
+  margin-top:3px;
+
+  font-size:8px;
+
+  color:#89939a;
+}
+
+
+/* =========================================================
+   NOTICE
+========================================================= */
+
+.notice{
+
+  width:100%;
+
+  box-sizing:border-box;
+
+  padding:9px 12px;
+
+  margin:0 0 12px;
+
+  border-radius:5px;
+
+  font-size:10px;
+
+  font-weight:700;
+}
+
+
+.notice.hidden{
+
+  display:none;
+}
+
+
+.notice.info{
+
+  background:#e8f1ff;
+
+  color:#175ea8;
+
+  border:1px solid #cfe1ff;
+}
+
+
+.notice.success{
+
+  background:#e8f6ef;
+
+  color:#117a4b;
+
+  border:1px solid #c9e9d8;
+}
+
+
+.notice.error{
+
+  background:#fdeaea;
+
+  color:#c62828;
+
+  border:1px solid #f5caca;
+}
+
+
+/* =========================================================
+   UPLOAD GRID
+========================================================= */
+
+.upload-grid{
+
+  display:grid;
+
+  grid-template-columns:1fr;
+
+  gap:12px;
+
+  width:100%;
+}
+
+
+/* =========================================================
+   PANEL
+========================================================= */
+
+.panel{
+
+  background:#fff;
+
+  border:1px solid #dfe5e8;
+
+  border-radius:8px;
+
+  padding:14px;
+
+  box-sizing:border-box;
+
+  box-shadow:0 2px 7px rgba(0,0,0,.04);
+
+  transition:.2s;
+}
+
+
+.panel:hover{
+
+  box-shadow:0 3px 12px rgba(0,0,0,.06);
+}
+
+
+.primary-panel{
+
+  border-color:#9bd5b9;
+}
+
+
+/* =========================================================
+   PANEL TITLE
+========================================================= */
+
+.panel-title{
+
+  display:flex;
+
+  align-items:flex-start;
+
+  gap:10px;
+
+  margin-bottom:12px;
+}
+
+
+.step{
+
+  width:24px;
+
+  height:24px;
+
+  border-radius:50%;
+
+  background:#e8f6ef;
+
+  color:#198754;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  font-size:11px;
+
+  font-weight:800;
+
+  flex-shrink:0;
+}
+
+
+.panel-title h2{
+
+  margin:0;
+
+  font-size:14px;
+
+  line-height:1.2;
+
+  color:#17212b;
+}
+
+
+.panel-title p{
+
+  margin:3px 0 0;
+
+  font-size:9px;
+
+  color:#7c878e;
+}
+
+
+/* =========================================================
+   FILE INPUT
+========================================================= */
+
+input[type="file"]{
+
+  width:100%;
+
+  min-height:58px;
+
+  box-sizing:border-box;
+
+  border:1px dashed #b9cbd4;
+
+  border-radius:7px;
+
+  padding:18px 12px;
+
+  background:#fafcfd;
+
+  font-size:10px;
+
+  color:#47545d;
+
+  cursor:pointer;
+
+  margin-bottom:10px;
+}
+
+
+input[type="file"]:hover{
+
+  border-color:#198754;
+
+  background:#f5fbf8;
+}
+
+
+input[type="file"]:disabled{
+
+  opacity:.55;
+
+  cursor:not-allowed;
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.big-btn{
+
+  min-height:36px;
+
+  border:0;
+
+  border-radius:6px;
+
+  padding:0 15px;
+
+  background:#198754;
+
+  color:#fff;
+
+  font-size:10px;
+
+  font-weight:800;
+
+  cursor:pointer;
+
+  box-sizing:border-box;
+}
+
+
+.big-btn:hover{
+
+  background:#157347;
+}
+
+
+.big-btn:disabled{
+
+  opacity:.55;
+
+  cursor:not-allowed;
+}
+
+
+.button-row{
+
+  display:flex;
+
+  gap:8px;
+
+  flex-wrap:wrap;
+
+  align-items:center;
+}
+
+
+.button{
+
+  text-decoration:none;
+
+  display:inline-flex;
+
+  align-items:center;
+
+  justify-content:center;
+}
+
+
+.secondary{
+
+  background:#eef2f3;
+
+  color:#25313a;
+
+  border:1px solid #d6dee2;
+}
+
+
+.secondary:hover{
+
+  background:#e1e7ea;
+}
+
+
+/* =========================================================
+   HINT
+========================================================= */
+
+.hint{
+
+  margin-top:8px;
+
+  font-size:8px;
+
+  line-height:1.4;
+
+  color:#8a959c;
+}
+
+
+/* =========================================================
+   LOCKED PANEL
+========================================================= */
+
+.panel.locked{
+
+  opacity:.58;
+
+  background:#f8f9fa;
+}
+
+
+.panel.locked input{
+
+  background:#f1f3f4;
+}
+
+
+/* =========================================================
+   MASTER AREA
+   Hidden until Hard Reset
+========================================================= */
+
+#masterArea{
+
+  display:none;
+
+  grid-template-columns:1fr 1fr;
+
+  gap:12px;
+
+  margin-top:12px;
+}
+
+
+#masterArea.show{
+
+  display:grid;
+}
+
+
+/* =========================================================
+   RESET MESSAGE
+========================================================= */
+
+.reset-info{
+
+  display:none;
+
+  margin-top:10px;
+
+  padding:8px 10px;
+
+  background:#e8f6ef;
+
+  border:1px solid #c9e9d8;
+
+  color:#117a4b;
+
+  border-radius:5px;
+
+  font-size:9px;
+
+  font-weight:700;
+
+  text-align:center;
+}
+
+
+.reset-info.show{
+
+  display:block;
+}
+
+
+/* =========================================================
+   OPEN RESULT BUTTON
+========================================================= */
+
+.result-open{
+
+  display:flex;
+
+  justify-content:center;
+
+  align-items:center;
+
+  margin-top:12px;
+}
+
+
+.result-open a{
+
+  min-height:36px;
+
+  padding:0 18px;
+
+  border-radius:6px;
+
+  background:#198754;
+
+  color:#fff;
+
+  text-decoration:none;
+
+  font-size:10px;
+
+  font-weight:800;
+
+  display:inline-flex;
+
+  align-items:center;
+
+  justify-content:center;
+}
+
+
+.result-open a:hover{
+
+  background:#157347;
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.footer{
+
+  text-align:center;
+
+  padding:12px 0 4px;
+
+  color:#89939a;
+
+  font-size:8px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media(max-width:760px){
+
+  .topbar{
+
+    align-items:flex-start;
+
+    flex-direction:column;
+
+    padding:10px;
+  }
+
+
+  .topbar nav{
+
+    width:100%;
+
+    overflow-x:auto;
+
+    padding-bottom:2px;
+  }
+
+
+  .content{
+
+    width:96%;
+  }
+
+
+  .cards.three{
+
+    grid-template-columns:1fr;
+  }
+
+
+  #masterArea.show{
+
+    grid-template-columns:1fr;
+  }
+
+}
+
+
+/* =========================================================
+   LARGE DETAIL REPORT BOX
+========================================================= */
+
+#detailPanel{
+
+  min-height:190px;
+}
+
+
+#detailedFile{
+
+  min-height:78px;
+
+  padding:26px 14px;
+
+  font-size:10px;
+}
+
+
+#generateBtn{
+
+  min-width:135px;
+
+  min-height:40px;
+
+  font-size:11px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<div class="shell">
+
+
+<!-- =======================================================
+     TOP BAR
+======================================================= -->
+
+<header class="topbar">
+
+  <div class="top-brand">
+
+    <div class="brand-icon">
+      🚑
+    </div>
+
+    <div>
+
+      <h1>
+        MVU Wise Daily Report
+      </h1>
+
+      <p>
+        Madhya Pradesh • Daily Report System
+      </p>
+
+    </div>
+
+  </div>
+
+
+  <nav>
+
+    <a
+      href="/upload.html">
+      Upload Page
+    </a>
+
+    <a
+      href="/result.html">
+      View Result
+    </a>
+
+    <button
+      type="button"
+      class="nav-danger"
+      id="hardResetBtn">
+      Hard Reset
+    </button>
+
+  </nav>
+
+</header>
+
+
+
+<!-- =======================================================
+     CONTENT
+======================================================= -->
+
+<main class="content">
+
+
+<!-- =======================================================
+     SUMMARY
+======================================================= -->
+
+<section class="cards three">
+
+
+  <div class="status-card">
+
+    <span>
+      Unique District
+    </span>
+
+    <strong id="districtCount">
+      0
+    </strong>
+
+  </div>
+
+
+  <div class="status-card">
+
+    <span>
+      Unique Block
+    </span>
+
+    <strong id="blockCount">
+      0
+    </strong>
+
+  </div>
+
+
+  <div class="status-card">
+
+    <span>
+      Unique Village
+    </span>
+
+    <strong id="villageCount">
+      0
+    </strong>
+
+  </div>
+
+
+</section>
+
+
+
+<!-- =======================================================
+     NOTICE
+======================================================= -->
+
+<div
+  id="notice"
+  class="notice hidden">
+</div>
+
+
+
+<!-- =======================================================
+     DAILY DETAIL REPORT
+     ALWAYS VISIBLE
+======================================================= -->
+
+<section
+  class="upload-grid">
+
+  <div
+    class="panel primary-panel"
+    id="detailPanel">
+
+
+    <div class="panel-title">
+
+      <span class="step">
+        1
+      </span>
+
+      <div>
+
+        <h2>
+          Daily Detailed Report
+        </h2>
+
+        <p>
+          Upload the actual two-date DetailedReport file
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <input
+      id="detailedFile"
+      type="file"
+      accept=".xlsx,.xls">
+
+
+    <button
+      type="button"
+      class="big-btn"
+      id="generateBtn">
+
+      Generate Report →
+
+    </button>
+
+
+    <div class="hint">
+
+      Filters TA, Enquiry and WT rows before aggregation.
+
+    </div>
+
+
+  </div>
+
+</section>
+
+
+
+<!-- =======================================================
+     RESET INFO
+======================================================= -->
+
+<div
+  id="resetInfo"
+  class="reset-info">
+
+  🔓 Hard Reset completed.
+  Village Mapping और Week Off Master upload options अब उपलब्ध हैं।
+
+</div>
+
+
+
+<!-- =======================================================
+     MASTER AREA
+     HIDDEN UNTIL HARD RESET
+======================================================= -->
+
+<section
+  id="masterArea">
+
+
+  <!-- =====================================================
+       VILLAGE MAPPING
+  ====================================================== -->
+
+  <div
+    class="panel"
+    id="mappingPanel">
+
+
+    <div class="panel-title">
+
+      <span class="step">
+        2
+      </span>
+
+      <div>
+
+        <h2>
+          Village Mapping
+        </h2>
+
+        <p>
+          Panchayat ID → MVU/Gadi Number
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <input
+      id="mappingFile"
+      type="file"
+      accept=".xlsx,.xls">
+
+
+    <button
+      type="button"
+      class="big-btn"
+      id="mappingBtn">
+
+      Save / Update Mapping
+
+    </button>
+
+
+    <div class="hint">
+
+      Upload the latest Village Mapping Excel file.
+
+    </div>
+
+
+  </div>
+
+
+
+  <!-- =====================================================
+       WEEK OFF
+  ====================================================== -->
+
+  <div
+    class="panel"
+    id="weekoffPanel">
+
+
+    <div class="panel-title">
+
+      <span class="step">
+        3
+      </span>
+
+      <div>
+
+        <h2>
+          Week Off / Template
+        </h2>
+
+        <p>
+          Vehicle-wise weekly off master
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <input
+      id="weekoffFile"
+      type="file"
+      accept=".xlsx,.xls">
+
+
+    <div class="button-row">
+
+      <button
+        type="button"
+        class="big-btn"
+        id="weekoffBtn">
+
+        Save / Update Week Off
+
+      </button>
+
+
+      <a
+        class="button secondary big-btn"
+        href="/api/weekoff/template">
+
+        Download Template
+
+      </a>
+
+    </div>
+
+
+    <div class="hint">
+
+      Upload the latest Week Off / Template Excel file.
+
+    </div>
+
+
+  </div>
+
+
+</section>
+
+
+
+<!-- =======================================================
+     OPEN RESULT
+======================================================= -->
+
+<div class="result-open">
+
+  <a href="/result.html">
+
+    📊 Open Report Result
+
+  </a>
+
+</div>
+
+
+
+<!-- =======================================================
+     FOOTER
+======================================================= -->
+
+<footer class="footer">
+
+  MVU Report Tool
+  &nbsp;|&nbsp;
+  Madhya Pradesh
+  &nbsp;|&nbsp;
+  Daily Report System
+
+</footer>
+
+
+</main>
+
+</div>
+
+
+
+<script>
+
+/* =========================================================
+   HELPER
+========================================================= */
+
+const $ = id =>
+  document.getElementById(id);
+
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+let state = null;
+
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function esc(value){
+
+  return String(
+    value ?? ""
+  ).replace(
+    /[&<>"']/g,
+    character => {
+
+      const map = {
+
+        "&":"&amp;",
+        "<":"&lt;",
+        ">":"&gt;",
+        '"':"&quot;",
+        "'":"&#039;"
+
+      };
+
+      return map[character];
+
+    }
+  );
+
+}
+
+
+
+/* =========================================================
+   NOTICE
+========================================================= */
+
+function show(message,type="info"){
+
+  const notice =
+    $("notice");
+
+  notice.textContent =
+    message;
+
+  notice.className =
+    "notice " + type;
+
+}
+
+
+
+/* =========================================================
+   HIDE NOTICE
+========================================================= */
+
+function hideNotice(){
+
+  const notice =
+    $("notice");
+
+  notice.className =
+    "notice hidden";
+
+  notice.textContent =
+    "";
+
+}
+
+
+
+/* =========================================================
+   SAFE JSON API
+========================================================= */
+
+async function apiJSON(
+  url,
+  options={}
+){
+
+  const response =
+    await fetch(
+      url,
+      {
+        ...options,
+        cache:"no-store"
+      }
+    );
+
+
+  const contentType =
+    (
+      response.headers.get(
+        "content-type"
+      ) || ""
+    ).toLowerCase();
+
+
+  const text =
+    await response.text();
+
+
+  /*
+    Server ने HTML भेजा है
+    तो साफ error दें।
+  */
+
+  if(
+    !contentType.includes(
+      "application/json"
+    )
+  ){
+
+    console.error(
+      "API returned non-JSON:",
+      url,
+      text
+    );
+
+    throw new Error(
+      "Server API route not found or server returned an HTML page instead of JSON."
+    );
+
+  }
+
+
+  let data;
+
+  try{
+
+    data =
+      JSON.parse(text);
+
+  }
+  catch(error){
+
+    console.error(
+      "Invalid JSON:",
+      text
+    );
+
+    throw new Error(
+      "Server returned invalid JSON."
+    );
+
+  }
+
+
+  if(!response.ok){
+
+    throw new Error(
+      data.error ||
+      data.message ||
+      "Server request failed."
+    );
+
+  }
+
+
+  return data;
+
+}
+
+
+
+/* =========================================================
+   SHOW / HIDE MASTER AREA
+========================================================= */
+
+function showMasterArea(){
+
+  const area =
+    $("masterArea");
+
+  area.classList.add(
+    "show"
+  );
+
+
+  $("resetInfo")
+    .classList.add(
+      "show"
+    );
+
+}
+
+
+function hideMasterArea(){
+
+  const area =
+    $("masterArea");
+
+  area.classList.remove(
+    "show"
+  );
+
+
+  $("resetInfo")
+    .classList.remove(
+      "show"
+    );
+
+}
+
+
+
+/* =========================================================
+   MASTER PANEL LOCK
+========================================================= */
+
+function setMasterPanel(
+  panel,
+  locked,
+  label
+){
+
+  if(!panel)
+    return;
+
+
+  panel.classList.toggle(
+    "locked",
+    locked
+  );
+
+
+  panel
+    .querySelectorAll(
+      "input,button:not(.secondary)"
+    )
+    .forEach(
+      element => {
+
+        element.disabled =
+          locked;
+
+      }
+    );
+
+
+  if(locked){
+
+    const hint =
+      panel.querySelector(
+        ".hint"
+      );
+
+    if(hint){
+
+      hint.textContent =
+        "🔒 " +
+        label +
+        " is locked. Use Hard Reset to upload it again.";
+
+    }
+
+  }
+
+}
+
+
+
+/* =========================================================
+   LOAD STATUS
+========================================================= */
+
+async function loadStatus(){
+
+  try{
+
+    const data =
+      await apiJSON(
+        "/api/status"
+      );
+
+
+    state =
+      data;
+
+
+    /*
+      Server status से counts
+      लेना।
+    */
+
+    const mappingCount =
+      Number(
+        state.mappingCount || 0
+      );
+
+
+    const weekOffCount =
+      Number(
+        state.weekOffCount || 0
+      );
+
+
+    /*
+      IMPORTANT:
+      Summary में master counts
+      नहीं दिखाने हैं।
+    */
+
+
+    /*
+      Existing report से
+      unique counts निकालने की कोशिश।
+    */
+
+    calculateUniqueCounts(
+      state
+    );
+
+
+    /*
+      Master upload boxes: only show when a master is missing
+      (first setup or after Hard Reset). Once both masters exist,
+      keep them hidden until the next Hard Reset.
+    */
+    const needsMasterUpload =
+      mappingCount === 0 || weekOffCount === 0;
+
+    if(needsMasterUpload){
+      showMasterArea();
+    }else{
+      hideMasterArea();
+    }
+
+
+    /*
+      Existing masters remain locked.
+    */
+
+    setMasterPanel(
+      $("mappingPanel"),
+      mappingCount > 0,
+      "Village Mapping"
+    );
+
+
+    setMasterPanel(
+      $("weekoffPanel"),
+      weekOffCount > 0,
+      "Week Off Master"
+    );
+
+
+  }
+  catch(error){
+
+    console.error(
+      "Status Load Error:",
+      error
+    );
+
+
+    show(
+      "Unable to read server status: " +
+      error.message,
+      "error"
+    );
+
+  }
+
+}
+
+
+
+/* =========================================================
+   UNIQUE COUNTS
+========================================================= */
+
+function calculateUniqueCounts(serverState){
+  $("districtCount").textContent =
+    Number(serverState?.uniqueDistrictCount || 0).toLocaleString();
+  $("blockCount").textContent =
+    Number(serverState?.uniqueBlockCount || 0).toLocaleString();
+  $("villageCount").textContent =
+    Number(serverState?.uniqueVillageCount || 0).toLocaleString();
+}
+
+
+/* =========================================================
+   UPLOAD MASTER
+========================================================= */
+
+async function uploadMaster(
+  inputId,
+  url
+){
+
+  const input =
+    $(inputId);
+
+
+  if(
+    !input ||
+    !input.files ||
+    !input.files[0]
+  ){
+
+    show(
+      "Please select an Excel file first.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const file =
+    input.files[0];
+
+
+  const formData =
+    new FormData();
+
+
+  formData.append(
+    "file",
+    file
+  );
+
+
+  try{
+
+    show(
+      "Uploading " +
+      file.name +
+      "…",
+      "info"
+    );
+
+
+    const result =
+      await apiJSON(
+        url,
+        {
+          method:"POST",
+          body:formData
+        }
+      );
+
+
+    show(
+      result.message ||
+      "Upload completed successfully.",
+      "success"
+    );
+
+
+    input.value =
+      "";
+
+
+    /*
+      Status reload.
+    */
+
+    await loadStatus();
+
+
+    /*
+      Reset के बाद upload किया गया है,
+      इसलिए master area खुला रखें।
+    */
+
+    showMasterArea();
+
+
+  }
+  catch(error){
+
+    console.error(
+      "Master Upload Error:",
+      error
+    );
+
+
+    show(
+      error.message,
+      "error"
+    );
+
+  }
+
+}
+
+
+
+/* =========================================================
+   GENERATE REPORT
+========================================================= */
+
+async function generate(){
+
+  /*
+    पहले status check
+  */
+
+  if(
+    !state
+  ){
+
+    await loadStatus();
+
+  }
+
+
+  /*
+    Master data server में होना चाहिए।
+  */
+
+  if(
+    !state ||
+    !Number(
+      state.mappingCount || 0
+    ) ||
+    !Number(
+      state.weekOffCount || 0
+    )
+  ){
+
+    show(
+      "Please upload Village Mapping and Week Off master first. If you want to upload them again, click Hard Reset.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const input =
+    $("detailedFile");
+
+
+  if(
+    !input.files ||
+    !input.files[0]
+  ){
+
+    show(
+      "Please select DetailedReport.xlsx first.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const file =
+    input.files[0];
+
+
+  const formData =
+    new FormData();
+
+
+  formData.append(
+    "file",
+    file
+  );
+
+
+  const button =
+    $("generateBtn");
+
+
+  const oldText =
+    button.textContent;
+
+
+  try{
+
+    button.disabled =
+      true;
+
+
+    button.textContent =
+      "Processing…";
+
+
+    show(
+      "Processing actual Excel data…",
+      "info"
+    );
+
+
+    const result =
+      await apiJSON(
+        "/api/generate",
+        {
+          method:"POST",
+          body:formData
+        }
+      );
+
+
+    if(
+      !result.ok
+    ){
+
+      throw new Error(
+        result.error ||
+        "Report generation failed."
+      );
+
+    }
+
+
+    input.value =
+      "";
+
+
+    show(
+      "Report generated successfully. Opening Result Page…",
+      "success"
+    );
+
+
+    /*
+      थोड़ी देर ताकि message
+      दिखाई दे।
+    */
+
+    setTimeout(
+      () => {
+
+        window.location.href =
+          "/result.html";
+
+      },
+      350
+    );
+
+
+  }
+  catch(error){
+
+    console.error(
+      "Generate Error:",
+      error
+    );
+
+
+    show(
+      error.message,
+      "error"
+    );
+
+
+  }
+  finally{
+
+    button.disabled =
+      false;
+
+
+    button.textContent =
+      oldText;
+
+  }
+
+}
+
+
+
+/* =========================================================
+   HARD RESET
+========================================================= */
+
+async function hardReset(){
+
+  /*
+    Password
+  */
+
+  const password =
+    prompt(
+      "Hard Reset Password:"
+    );
+
+
+  if(
+    password === null
+  ){
+
+    return;
+
+  }
+
+
+  if(
+    password !== "1122"
+  ){
+
+    show(
+      "Wrong password. Hard Reset cancelled.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const confirmed =
+    confirm(
+      "Hard Reset will remove Village Mapping, Week Off Master and the current report. Continue?"
+    );
+
+
+  if(!confirmed){
+
+    return;
+
+  }
+
+
+  const button =
+    $("hardResetBtn");
+
+
+  const oldText =
+    button.textContent;
+
+
+  try{
+
+    button.disabled =
+      true;
+
+
+    button.textContent =
+      "Resetting…";
+
+
+    show(
+      "Performing Hard Reset…",
+      "info"
+    );
+
+
+    /*
+      IMPORTANT:
+      Exact backend route.
+    */
+
+    const result =
+      await apiJSON(
+        "/api/reset/hard",
+        {
+          method:"POST",
+
+          headers:{
+            "Content-Type":
+              "application/json",
+
+            "Accept":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              password:"1122"
+            })
+        }
+      );
+
+
+    if(
+      !result.ok
+    ){
+
+      throw new Error(
+        result.error ||
+        "Hard Reset failed."
+      );
+
+    }
+
+
+    /*
+      Reset success
+    */
+
+    state =
+      null;
+
+
+    /*
+      अब mapping और weekoff
+      boxes दिखाई देंगे।
+    */
+
+    showMasterArea();
+
+
+    /*
+      Reset के बाद controls
+      unlock करें।
+    */
+
+    setMasterPanel(
+      $("mappingPanel"),
+      false,
+      "Village Mapping"
+    );
+
+
+    setMasterPanel(
+      $("weekoffPanel"),
+      false,
+      "Week Off Master"
+    );
+
+
+    /*
+      Counts reset
+    */
+
+    $("districtCount")
+      .textContent = "0";
+
+
+    $("blockCount")
+      .textContent = "0";
+
+
+    $("villageCount")
+      .textContent = "0";
+
+
+    show(
+      result.message ||
+      "Hard Reset completed successfully.",
+      "success"
+    );
+
+
+    /*
+      Important:
+      loadStatus() यहां तुरंत call नहीं करना,
+      क्योंकि वह master area को फिर hide कर देगा।
+    */
+
+
+  }
+  catch(error){
+
+    console.error(
+      "Hard Reset Error:",
+      error
+    );
+
+
+    show(
+      "Hard Reset failed: " +
+      error.message,
+      "error"
+    );
+
+  }
+  finally{
+
+    button.disabled =
+      false;
+
+
+    button.textContent =
+      oldText;
+
+  }
+
+}
+
+
+
+/* =========================================================
+   BUTTON EVENTS
+========================================================= */
+
+$("mappingBtn").onclick =
+  () =>
+    uploadMaster(
+      "mappingFile",
+      "/api/upload/mapping"
+    );
+
+
+$("weekoffBtn").onclick =
+  () =>
+    uploadMaster(
+      "weekoffFile",
+      "/api/upload/weekoff"
+    );
+
+
+$("generateBtn").onclick =
+  generate;
+
+
+$("hardResetBtn").onclick =
+  hardReset;
+
+
+
+/* =========================================================
+   INITIAL LOAD
+========================================================= */
+
+loadStatus();
+
+
+/*
+  हर 5 सेकंड status check करें।
+
+  लेकिन Hard Reset के बाद master area
+  user के सामने खुला रहे इसलिए automatic
+  loadStatus() reset के तुरंत बाद नहीं होता।
+*/
+
+setInterval(
+  async () => {
+
+    /*
+      अगर reset info खुला है,
+      तो master area को hide मत करें।
+    */
+
+    const resetVisible =
+      $("resetInfo")
+        .classList
+        .contains("show");
+
+
+    try{
+
+      const data =
+        await apiJSON(
+          "/api/status"
+        );
+
+
+      state =
+        data;
+
+
+      calculateUniqueCounts(
+        state
+      );
+
+
+      const needsMasterUpload =
+        Number(state.mappingCount || 0) === 0 ||
+        Number(state.weekOffCount || 0) === 0;
+
+      if(resetVisible || needsMasterUpload){
+        showMasterArea();
+      }else{
+        hideMasterArea();
+      }
+
+      if(!resetVisible){
+
+        setMasterPanel(
+          $("mappingPanel"),
+          Number(
+            state.mappingCount || 0
+          ) > 0,
+          "Village Mapping"
+        );
+
+
+        setMasterPanel(
+          $("weekoffPanel"),
+          Number(
+            state.weekOffCount || 0
+          ) > 0,
+          "Week Off Master"
+        );
+
+      }
+
+    }
+    catch(error){
+
+      console.error(
+        "Background Status Error:",
+        error
+      );
+
+    }
+
+  },
+  5000
+);
+
+</script>
+
+</body>
+</html>
