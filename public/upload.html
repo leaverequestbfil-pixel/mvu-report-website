@@ -1201,852 +1201,135 @@ input[type="file"]:disabled{
 
 
 
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
-
-/* =========================================================
-   HELPER
-========================================================= */
-
-const $ = id =>
-  document.getElementById(id);
-
-
-
-/* =========================================================
-   STATE
-========================================================= */
-
-let state = null;
-
-
-
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
-
-function esc(value){
-
-  return String(
-    value ?? ""
-  ).replace(
-    /[&<>"']/g,
-    character => {
-
-      const map = {
-
-        "&":"&amp;",
-        "<":"&lt;",
-        ">":"&gt;",
-        '"':"&quot;",
-        "'":"&#039;"
-
-      };
-
-      return map[character];
-
-    }
-  );
-
-}
-
-
-
-/* =========================================================
-   NOTICE
-========================================================= */
-
-function show(message,type="info"){
-
-  const notice =
-    $("notice");
-
-  notice.textContent =
-    message;
-
-  notice.className =
-    "notice " + type;
-
-}
-
-
-
-/* =========================================================
-   HIDE NOTICE
-========================================================= */
-
-function hideNotice(){
-
-  const notice =
-    $("notice");
-
-  notice.className =
-    "notice hidden";
-
-  notice.textContent =
-    "";
-
-}
-
-
-
-/* =========================================================
-   SAFE JSON API
-========================================================= */
-
-async function apiJSON(
-  url,
-  options={}
-){
-
-  const response =
-    await fetch(
-      url,
-      {
-        ...options,
-        cache:"no-store"
-      }
-    );
-
-
-  const contentType =
-    (
-      response.headers.get(
-        "content-type"
-      ) || ""
-    ).toLowerCase();
-
-
-  const text =
-    await response.text();
-
-
-  /*
-    Server ने HTML भेजा है
-    तो साफ error दें।
-  */
-
-  if(
-    !contentType.includes(
-      "application/json"
-    )
-  ){
-
-    console.error(
-      "API returned non-JSON:",
-      url,
-      text
-    );
-
-    throw new Error(
-      "Server API route not found or server returned an HTML page instead of JSON."
-    );
-
-  }
-
-
-  let data;
-
-  try{
-
-    data =
-      JSON.parse(text);
-
-  }
-  catch(error){
-
-    console.error(
-      "Invalid JSON:",
-      text
-    );
-
-    throw new Error(
-      "Server returned invalid JSON."
-    );
-
-  }
-
-
-  if(!response.ok){
-
-    throw new Error(
-      data.error ||
-      data.message ||
-      "Server request failed."
-    );
-
-  }
-
-
-  return data;
-
-}
-
-
-
-/* =========================================================
-   SHOW / HIDE MASTER AREA
-========================================================= */
-
-function showMasterArea(){
-
-  const area =
-    $("masterArea");
-
-  area.classList.add(
-    "show"
-  );
-
-
-  $("resetInfo")
-    .classList.add(
-      "show"
-    );
-
-}
-
-
-function hideMasterArea(){
-
-  const area =
-    $("masterArea");
-
-  area.classList.remove(
-    "show"
-  );
-
-
-  $("resetInfo")
-    .classList.remove(
-      "show"
-    );
-
-}
-
-
-
-/* =========================================================
-   MASTER PANEL LOCK
-========================================================= */
-
-function setMasterPanel(
-  panel,
-  locked,
-  label
-){
-
-  if(!panel)
-    return;
-
-
-  panel.classList.toggle(
-    "locked",
-    locked
-  );
-
-
-  panel
-    .querySelectorAll(
-      "input,button:not(.secondary)"
-    )
-    .forEach(
-      element => {
-
-        element.disabled =
-          locked;
-
-      }
-    );
-
-
-  if(locked){
-
-    const hint =
-      panel.querySelector(
-        ".hint"
-      );
-
-    if(hint){
-
-      hint.textContent =
-        "🔒 " +
-        label +
-        " is locked. Use Hard Reset to upload it again.";
-
-    }
-
-  }
-
-}
-
-
-
-/* =========================================================
-   LOAD STATUS
-========================================================= */
+const $=id=>document.getElementById(id);
+let state=null;
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+function show(msg,type='info'){const n=$('notice');n.textContent=msg;n.className='notice '+type;}
 
 async function loadStatus(){
-
   try{
-
-    const data =
-      await apiJSON(
-        "/api/status"
-      );
-
-
-    state =
-      data;
-
-
-    /*
-      Server status से counts
-      लेना।
-    */
-
-    const mappingCount =
-      Number(
-        state.mappingCount || 0
-      );
-
-
-    const weekOffCount =
-      Number(
-        state.weekOffCount || 0
-      );
-
-
-    /*
-      IMPORTANT:
-      Summary में master counts
-      नहीं दिखाने हैं।
-    */
-
-
-    /*
-      Existing report से
-      unique counts निकालने की कोशिश।
-    */
-
-    calculateUniqueCounts(
-      state
-    );
-
-
-    /*
-      Master upload boxes: only show when a master is missing
-      (first setup or after Hard Reset). Once both masters exist,
-      keep them hidden until the next Hard Reset.
-    */
-    const needsMasterUpload =
-      mappingCount === 0 || weekOffCount === 0;
-
-    if(needsMasterUpload){
-      showMasterArea();
-    }else{
-      hideMasterArea();
+    const r=await fetch('/api/status',{cache:'no-store'});
+    const x=await r.json();
+    state=x;
+    $('mappingCount').textContent=Number(x.mappingCount||0).toLocaleString();
+    $('weekOffCount').textContent=Number(x.weekOffCount||0).toLocaleString();
+    const mLocked=Number(x.mappingCount||0)>0, wLocked=Number(x.weekOffCount||0)>0;
+    $('mappingState').textContent=mLocked?'🔒 Locked':'Upload required';
+    $('weekOffState').textContent=wLocked?'🔒 Locked':'Upload required';
+    if(x.latest){
+      $('latestDate').textContent=x.latest.firstDateDisplay+(x.latest.secondDateDisplay?' → '+x.latest.secondDateDisplay:'');
+      $('latestSource').textContent=x.latest.sourceFile||'';
+    } else {
+      $('latestDate').textContent='—'; $('latestSource').textContent='Not generated';
     }
-
-
-    /*
-      Existing masters remain locked.
-    */
-
-    setMasterPanel(
-      $("mappingPanel"),
-      mappingCount > 0,
-      "Village Mapping"
-    );
-
-
-    setMasterPanel(
-      $("weekoffPanel"),
-      weekOffCount > 0,
-      "Week Off Master"
-    );
-
-
-  }
-  catch(error){
-
-    console.error(
-      "Status Load Error:",
-      error
-    );
-
-
-    show(
-      "Unable to read server status: " +
-      error.message,
-      "error"
-    );
-
-  }
-
+  }catch(e){show('Unable to read server status: '+e.message,'error');}
 }
 
-
-
-/* =========================================================
-   UNIQUE COUNTS
-========================================================= */
-
-function calculateUniqueCounts(serverState){
-  $("districtCount").textContent =
-    Number(serverState?.uniqueDistrictCount || 0).toLocaleString();
-  $("blockCount").textContent =
-    Number(serverState?.uniqueBlockCount || 0).toLocaleString();
-  $("villageCount").textContent =
-    Number(serverState?.uniqueVillageCount || 0).toLocaleString();
-}
-
-
-/* =========================================================
-   UPLOAD MASTER
-========================================================= */
-
-function readWorkbook(file, sheetName, mode="json"){
-  const buffer = await file.arrayBuffer();
-  const wb = XLSX.read(buffer, { type:"array", cellDates:true });
-  const actualSheet = sheetName && wb.SheetNames.includes(sheetName)
-    ? sheetName
-    : wb.SheetNames[0];
-  if(!actualSheet) throw new Error("Excel file has no worksheet.");
-  const ws = wb.Sheets[actualSheet];
-  if(!ws) throw new Error(`Sheet not found: ${sheetName || actualSheet}`);
-  if(mode==="raw") return XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
-  return XLSX.utils.sheet_to_json(ws,{defval:""});
-}
-
-async function sendRows(url, file, rows){
-  return apiJSON(url,{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Accept":"application/json"
-    },
-    body:JSON.stringify({
-      filename:file.name,
-      rows
-    })
+function rowsFromSheet(file, sheetName){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        const ws=wb.Sheets[sheetName] || wb.Sheets[wb.SheetNames[0]];
+        resolve(XLSX.utils.sheet_to_json(ws,{defval:''}));
+      }catch(err){reject(err);}
+    };
+    reader.onerror=()=>reject(reader.error||new Error('Unable to read file.'));
+    reader.readAsArrayBuffer(file);
   });
 }
 
-async function uploadMaster(inputId,url){
-  const input=$(inputId);
-  if(!input?.files?.[0]){
-    show("Please select an Excel file first.","error");
-    return;
+async function sendBatches(url, filename, rows, batchSize=500){
+  let total=0;
+  for(let i=0;i<rows.length;i+=batchSize){
+    const batch=rows.slice(i,i+batchSize);
+    const r=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({filename,rows:batch})
+    });
+    const text=await r.text();
+    let x;
+    try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response on batch '+(Math.floor(i/batchSize)+1));}
+    if(!r.ok || !x.ok) throw new Error(x.error||('Upload failed on batch '+(Math.floor(i/batchSize)+1)));
+    total+=Number(x.count||batch.length);
+    show(`Uploading ${Math.min(i+batch.length,rows.length).toLocaleString()} / ${rows.length.toLocaleString()} rows…`,'info');
   }
-  const file=input.files[0];
+  return total;
+}
+
+async function uploadMapping(){
+  const input=$('mappingFile');
+  if(!input.files[0])return show('Please select an Excel file first.','error');
   try{
-    show("Reading "+file.name+" in your browser…","info");
+    show('Reading Village Mapping in your browser…','info');
+    const rows=await rowsFromSheet(input.files[0],'UpdateVillageMapping');
+    if(!rows.length)throw new Error('Village Mapping sheet is empty.');
+    const n=await sendBatches('/api/upload/mapping',input.files[0].name,rows,500);
+    input.value=''; await loadStatus();
+    show(`Village Mapping saved successfully: ${n.toLocaleString()} rows.`,'success');
+  }catch(e){show(e.message,'error');console.error(e);}
+}
 
-    let rows;
-    if(url==="/api/upload/mapping"){
-      rows=await readWorkbook(file,"UpdateVillageMapping","json");
-    }else{
-      rows=await readWorkbook(file,
-        "Daily Data Entry",
-        "raw"
-      );
-    }
-
-    if(!rows.length) throw new Error("The selected Excel sheet is empty.");
-
-    show("Sending processed data to server…","info");
-    const result=await sendRows(url,file,rows);
-
-    show(result.message||"Upload completed successfully.","success");
-    input.value="";
-    await loadStatus();
-    showMasterArea();
-  }catch(error){
-    console.error("Master Upload Error:",error);
-    show(error.message||"Upload failed.","error");
-  }
+async function uploadWeekoff(){
+  const input=$('weekoffFile');
+  if(!input.files[0])return show('Please select an Excel file first.','error');
+  try{
+    show('Reading Week Off file in your browser…','info');
+    const rows=await rowsFromSheet(input.files[0],'Daily Data Entry');
+    if(!rows.length)throw new Error('Week Off sheet is empty.');
+    const n=await sendBatches('/api/upload/weekoff',input.files[0].name,rows,200);
+    input.value=''; await loadStatus();
+    show(`Week Off saved successfully: ${n.toLocaleString()} rows.`,'success');
+  }catch(e){show(e.message,'error');console.error(e);}
 }
 
 async function generate(){
-  if(!state) await loadStatus();
-
-  if(!state ||
-     !Number(state.mappingCount||0) ||
-     !Number(state.weekOffCount||0)){
-    show("Please upload Village Mapping and Week Off master first. If you want to upload them again, click Hard Reset.","error");
-    return;
-  }
-
-  const input=$("detailedFile");
-  if(!input?.files?.[0]){
-    show("Please select DetailedReport.xlsx first.","error");
-    return;
-  }
-
-  const file=input.files[0];
-  const button=$("generateBtn");
-  const oldText=button.textContent;
-
+  if(!state || !state.mappingCount || !state.weekOffCount)
+    return show('Please upload Village Mapping and Week Off master first.','error');
+  const input=$('detailedFile');
+  if(!input.files[0])return show('Please select DetailedReport.xlsx first.','error');
+  show('Processing Detailed Report…','info');
+  // The generate endpoint receives the Excel as before only if the Worker
+  // implementation supports it. This can be changed to browser parsing next.
+  const fd=new FormData(); fd.append('file',input.files[0]);
   try{
-    button.disabled=true;
-    button.textContent="Reading Excel…";
-    show("Reading DetailedReport.xlsx in your browser…","info");
-
-    const rows=await readWorkbook(file,"DetailedReport","json");
-    if(!rows.length) throw new Error("DetailedReport sheet is empty.");
-
-    button.textContent="Sending data…";
-    show("Excel processed in browser. Sending report data…","info");
-
-    const result=await sendRows("/api/generate",file,rows);
-
-    if(!result.ok) throw new Error(result.error||"Report generation failed.");
-
-    input.value="";
-    show("Report generated successfully. Opening Result Page…","success");
-
-    setTimeout(()=>{
-      window.location.href="/result.html";
-    },350);
-  }catch(error){
-    console.error("Generate Error:",error);
-    show(error.message||"Report generation failed.","error");
-  }finally{
-    button.disabled=false;
-    button.textContent=oldText;
-  }
+    const r=await fetch('/api/generate',{method:'POST',body:fd});
+    const text=await r.text(); let x;
+    try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response for Generate Report.');}
+    if(!r.ok || !x.ok)throw new Error(x.error||'Report generation failed.');
+    input.value='';show('Report generated successfully. Opening Result Page…','success');
+    window.location.href='/result.html';
+  }catch(e){show(e.message,'error');console.error(e);}
 }
-
-/* =========================================================
-   HARD RESET
-========================================================= */
 
 async function hardReset(){
-
-  /*
-    Password
-  */
-
-  const password =
-    prompt(
-      "Hard Reset Password:"
-    );
-
-
-  if(
-    password === null
-  ){
-
-    return;
-
-  }
-
-
-  if(
-    password !== "1122"
-  ){
-
-    show(
-      "Wrong password. Hard Reset cancelled.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  const confirmed =
-    confirm(
-      "Hard Reset will remove Village Mapping, Week Off Master and the current report. Continue?"
-    );
-
-
-  if(!confirmed){
-
-    return;
-
-  }
-
-
-  const button =
-    $("hardResetBtn");
-
-
-  const oldText =
-    button.textContent;
-
-
+  const password=prompt('Hard Reset Password:');
+  if(password===null)return;
+  if(password!=='1122')return show('Wrong password. Hard Reset cancelled.','error');
+  if(!confirm('Hard Reset will permanently remove ALL uploaded masters, reports and logs. Continue?'))return;
   try{
-
-    button.disabled =
-      true;
-
-
-    button.textContent =
-      "Resetting…";
-
-
-    show(
-      "Performing Hard Reset…",
-      "info"
-    );
-
-
-    /*
-      IMPORTANT:
-      Exact backend route.
-    */
-
-    const result =
-      await apiJSON(
-        "/api/reset/hard",
-        {
-          method:"POST",
-
-          headers:{
-            "Content-Type":
-              "application/json",
-
-            "Accept":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-              password:"1122"
-            })
-        }
-      );
-
-
-    if(
-      !result.ok
-    ){
-
-      throw new Error(
-        result.error ||
-        "Hard Reset failed."
-      );
-
-    }
-
-
-    /*
-      Reset success
-    */
-
-    state =
-      null;
-
-
-    /*
-      अब mapping और weekoff
-      boxes दिखाई देंगे।
-    */
-
-    showMasterArea();
-
-
-    /*
-      Reset के बाद controls
-      unlock करें।
-    */
-
-    setMasterPanel(
-      $("mappingPanel"),
-      false,
-      "Village Mapping"
-    );
-
-
-    setMasterPanel(
-      $("weekoffPanel"),
-      false,
-      "Week Off Master"
-    );
-
-
-    /*
-      Counts reset
-    */
-
-    $("districtCount")
-      .textContent = "0";
-
-
-    $("blockCount")
-      .textContent = "0";
-
-
-    $("villageCount")
-      .textContent = "0";
-
-
-    show(
-      result.message ||
-      "Hard Reset completed successfully.",
-      "success"
-    );
-
-
-    /*
-      Important:
-      loadStatus() यहां तुरंत call नहीं करना,
-      क्योंकि वह master area को फिर hide कर देगा।
-    */
-
-
-  }
-  catch(error){
-
-    console.error(
-      "Hard Reset Error:",
-      error
-    );
-
-
-    show(
-      "Hard Reset failed: " +
-      error.message,
-      "error"
-    );
-
-  }
-  finally{
-
-    button.disabled =
-      false;
-
-
-    button.textContent =
-      oldText;
-
-  }
-
+    const r=await fetch('/api/reset/hard',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password})
+    });
+    const text=await r.text();let x;
+    try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response.');}
+    show(x.ok?x.message:x.error,x.ok?'success':'error');
+    if(x.ok)await loadStatus();
+  }catch(e){show(e.message,'error');}
 }
 
-
-
-/* =========================================================
-   BUTTON EVENTS
-========================================================= */
-
-$("mappingBtn").onclick =
-  () =>
-    uploadMaster(
-      "mappingFile",
-      "/api/upload/mapping"
-    );
-
-
-$("weekoffBtn").onclick =
-  () =>
-    uploadMaster(
-      "weekoffFile",
-      "/api/upload/weekoff"
-    );
-
-
-$("generateBtn").onclick =
-  generate;
-
-
-$("hardResetBtn").onclick =
-  hardReset;
-
-
-
-/* =========================================================
-   INITIAL LOAD
-========================================================= */
-
+$('mappingBtn').onclick=uploadMapping;
+$('weekoffBtn').onclick=uploadWeekoff;
+$('generateBtn').onclick=generate;
+$('hardResetBtn').onclick=hardReset;
 loadStatus();
-
-
-/*
-  हर 5 सेकंड status check करें।
-
-  लेकिन Hard Reset के बाद master area
-  user के सामने खुला रहे इसलिए automatic
-  loadStatus() reset के तुरंत बाद नहीं होता।
-*/
-
-setInterval(
-  async () => {
-
-    /*
-      अगर reset info खुला है,
-      तो master area को hide मत करें।
-    */
-
-    const resetVisible =
-      $("resetInfo")
-        .classList
-        .contains("show");
-
-
-    try{
-
-      const data =
-        await apiJSON(
-          "/api/status"
-        );
-
-
-      state =
-        data;
-
-
-      calculateUniqueCounts(
-        state
-      );
-
-
-      const needsMasterUpload =
-        Number(state.mappingCount || 0) === 0 ||
-        Number(state.weekOffCount || 0) === 0;
-
-      if(resetVisible || needsMasterUpload){
-        showMasterArea();
-      }else{
-        hideMasterArea();
-      }
-
-      if(!resetVisible){
-
-        setMasterPanel(
-          $("mappingPanel"),
-          Number(
-            state.mappingCount || 0
-          ) > 0,
-          "Village Mapping"
-        );
-
-
-        setMasterPanel(
-          $("weekoffPanel"),
-          Number(
-            state.weekOffCount || 0
-          ) > 0,
-          "Week Off Master"
-        );
-
-      }
-
-    }
-    catch(error){
-
-      console.error(
-        "Background Status Error:",
-        error
-      );
-
-    }
-
-  },
-  5000
-);
-
+setInterval(loadStatus,5000);
 </script>
 
 </body>
