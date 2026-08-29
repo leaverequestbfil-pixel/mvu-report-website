@@ -628,19 +628,13 @@ input[type="file"]:disabled{
 
 #masterArea{
 
-  display:grid;
+  display:none;
 
   grid-template-columns:1fr 1fr;
 
   gap:12px;
 
   margin-top:12px;
-}
-
-
-#masterArea.hidden-area{
-
-  display:none;
 }
 
 
@@ -823,13 +817,6 @@ input[type="file"]:disabled{
   font-size:11px;
 }
 
-
-.upload-progress{background:#fff;border:1px solid #b9ddcc;border-radius:8px;padding:10px 12px;margin:0 0 12px;box-shadow:0 2px 7px rgba(0,0,0,.04)}
-.upload-progress.hidden{display:none}
-.upload-progress-head{display:flex;justify-content:space-between;gap:10px;font-size:10px;color:#17352b;margin-bottom:7px}
-.upload-progress-track{height:10px;background:#e8edef;border-radius:99px;overflow:hidden}
-.upload-progress-bar{height:100%;background:#198754;width:0%;transition:width .15s ease}
-.upload-progress-text{font-size:9px;color:#6f7c83;margin-top:6px}
 </style>
 
 </head>
@@ -903,34 +890,22 @@ input[type="file"]:disabled{
      SUMMARY
 ======================================================= -->
 
-<section class="cards two">
-
-
-  <div class="status-card">
-
-    <span>
-      Unique District
-    </span>
-
-    <strong id="districtCount">
-      0
-    </strong>
-
-  </div>
-
+<section class="cards three">
 
   <div class="status-card">
-
-    <span>
-      Unique Block
-    </span>
-
-    <strong id="blockCount">
-      0
-    </strong>
-
+    <span>Unique District</span>
+    <strong id="districtCount">0</strong>
   </div>
 
+  <div class="status-card">
+    <span>Unique Block</span>
+    <strong id="blockCount">0</strong>
+  </div>
+
+  <div class="status-card">
+    <span>MVU Details</span>
+    <strong id="mvuDetailCount">0</strong>
+  </div>
 
 </section>
 
@@ -943,22 +918,6 @@ input[type="file"]:disabled{
 <div
   id="notice"
   class="notice hidden">
-</div>
-
-
-<!-- =======================================================
-     UPLOAD PROGRESS
-======================================================= -->
-
-<div id="uploadProgress" class="upload-progress hidden">
-  <div class="upload-progress-head">
-    <strong id="uploadProgressTitle">Preparing upload…</strong>
-    <span id="uploadProgressPercent">0%</span>
-  </div>
-  <div class="upload-progress-track">
-    <div id="uploadProgressBar" class="upload-progress-bar" style="width:0%"></div>
-  </div>
-  <div id="uploadProgressText" class="upload-progress-text">0 / 0 rows</div>
 </div>
 
 
@@ -1027,32 +986,58 @@ input[type="file"]:disabled{
 
 
 <!-- =======================================================
-     MASTER AREA
+     RESET INFO
 ======================================================= -->
 
-<div id="resetInfo" class="reset-info">🔓 Hard Reset complete. Existing data is safe. MVU Detail update option is now available.</div>
+<div id="resetInfo" class="reset-info">
+  🔓 MVU Details update is available. Uploading a new file will automatically replace the old MVU Details.
+</div>
+
+<!-- =======================================================
+     MVU DETAILS
+     AVAILABLE AFTER HARD RESET
+======================================================= -->
 
 <section id="masterArea">
+
   <div class="panel" id="mvuDetailPanel">
+
     <div class="panel-title">
       <span class="step">2</span>
       <div>
         <h2>MVU Detail</h2>
-        <p>District • Block • MVU Number • Week Off</p>
+        <p>District, Block, MVU Number and Week Off</p>
       </div>
+    </div>
+
+    <div class="button-row" style="margin-bottom:10px;">
+      <a class="button secondary big-btn" href="/api/mvudetail/template">
+        Download Sample
+      </a>
     </div>
 
     <input id="mvuDetailFile" type="file" accept=".xlsx,.xls">
 
-    <div class="button-row">
-      <button type="button" class="big-btn" id="mvuDetailBtn">Save / Update MVU Detail</button>
-      <a class="button secondary big-btn" href="/api/mvudetail/template">Download MVU Detail Format</a>
+    <button type="button" class="big-btn" id="mvuDetailBtn">
+      Upload Updated Details
+    </button>
+
+    <div class="progress-wrap" id="uploadProgress" style="display:none;margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;gap:10px;font-size:9px;font-weight:700;margin-bottom:5px;">
+        <span id="progressText">Uploading…</span>
+        <span id="progressPercent">0%</span>
+      </div>
+      <div style="height:10px;background:#e9eef0;border-radius:6px;overflow:hidden;">
+        <div id="progressBar" style="height:100%;width:0%;background:#198754;transition:width .15s;"></div>
+      </div>
     </div>
 
     <div class="hint">
-      Format: District, Block, MVU Number, Week Off. Uploading a new file automatically replaces the old MVU Detail data.
+      Required columns: District, Block, MVU Number, Week Off.
     </div>
+
   </div>
+
 </section>
 
 
@@ -1093,707 +1078,149 @@ input[type="file"]:disabled{
 
 
 
+
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
-
-/* =========================================================
-   HELPER
-========================================================= */
-
-const $ = id =>
-  document.getElementById(id);
-
-
-
-/* =========================================================
-   STATE
-========================================================= */
-
-let state = null;
-
-
-
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
-
-function esc(value){
-
-  return String(
-    value ?? ""
-  ).replace(
-    /[&<>"']/g,
-    character => {
-
-      const map = {
-
-        "&":"&amp;",
-        "<":"&lt;",
-        ">":"&gt;",
-        '"':"&quot;",
-        "'":"&#039;"
-
-      };
-
-      return map[character];
-
-    }
-  );
-
+const $=id=>document.getElementById(id);
+let state=null;
+function show(msg,type='info'){const n=$('notice');if(!n)return;n.textContent=msg;n.className='notice '+type;}
+function set(id,value){const el=$(id);if(el)el.textContent=value;}
+function setProgress(done,total,label='Uploading'){
+  const wrap=$('uploadProgress'),bar=$('progressBar'),text=$('progressText'),pct=$('progressPercent');
+  if(!wrap)return;
+  wrap.style.display='block';
+  const p=total?Math.min(100,Math.round(done/total*100)):0;
+  bar.style.width=p+'%';
+  text.textContent=`${label} ${done.toLocaleString()} / ${total.toLocaleString()} rows`;
+  pct.textContent=p+'%';
 }
-
-
-
-/* =========================================================
-   NOTICE
-========================================================= */
-
-function show(message,type="info"){
-
-  const notice = $("notice");
-  if(!notice) {
-    console[type === "error" ? "error" : "log"](message);
-    return;
-  }
-
-  notice.textContent = String(message ?? "");
-  notice.className = "notice " + type;
-
-}
-
-
-
-/* =========================================================
-   HIDE NOTICE
-========================================================= */
-
-function hideNotice(){
-
-  const notice =
-    $("notice");
-
-  notice.className =
-    "notice hidden";
-
-  notice.textContent =
-    "";
-
-}
-
-
-
-/* =========================================================
-   SAFE JSON API
-========================================================= */
-
-async function apiJSON(
-  url,
-  options={}
-){
-  const response = await fetch(url,{...options,cache:"no-store"});
-  const contentType=(response.headers.get("content-type")||"").toLowerCase();
-  const text=await response.text();
-
-  if(!contentType.includes("application/json")){
-    console.error("API returned non-JSON:",url,text);
-    throw new Error("Server API route not found or server returned an HTML page instead of JSON.");
-  }
-
-  let data;
-  try{ data=JSON.parse(text); }
-  catch(error){
-    console.error("Invalid JSON:",text);
-    throw new Error("Server returned invalid JSON.");
-  }
-
-  if(!response.ok) throw new Error(data.error||data.message||"Server request failed.");
-  return data;
-}
-
-
-/* =========================================================
-   UPLOAD PROGRESS
-========================================================= */
-
-function showUploadProgress(title,totalRows=0){
-  const box=$("uploadProgress");
-  if(!box) return;
-  box.classList.remove("hidden");
-  setText("uploadProgressTitle",title);
-  setText("uploadProgressPercent","0%");
-  setText("uploadProgressText",`0 / ${Number(totalRows||0).toLocaleString()} rows`);
-  const bar=$("uploadProgressBar");
-  if(bar) bar.style.width="0%";
-}
-
-function updateUploadProgress(percent,totalRows=0,title="Uploading…"){
-  const box=$("uploadProgress");
-  if(!box) return;
-  const pct=Math.max(0,Math.min(100,Number(percent)||0));
-  setText("uploadProgressTitle",title);
-  setText("uploadProgressPercent",`${Math.round(pct)}%`);
-  const uploaded=totalRows ? Math.min(totalRows,Math.round(totalRows*pct/100)) : 0;
-  setText("uploadProgressText",`${uploaded.toLocaleString()} / ${Number(totalRows||0).toLocaleString()} rows`);
-  const bar=$("uploadProgressBar");
-  if(bar) bar.style.width=`${pct}%`;
-}
-
-function finishUploadProgress(totalRows=0,title="Upload completed"){
-  updateUploadProgress(100,totalRows,title);
-}
-
-function hideUploadProgress(){
-  const box=$("uploadProgress");
-  if(box) box.classList.add("hidden");
-}
-
-
-/* =========================================================
-   SHOW / HIDE MASTER AREA
-========================================================= */
-
-function showMasterArea(){
-  const area=$("masterArea");
-  if(area){ area.classList.remove("hidden-area"); area.classList.add("show"); }
-  const info=$("resetInfo");
-  if(info) info.classList.add("show");
-}
-
-function hideMasterArea(){
-  const area=$("masterArea");
-  if(area){ area.classList.remove("show"); area.classList.add("hidden-area"); }
-  const info=$("resetInfo");
-  if(info) info.classList.remove("show");
-}
-
-
-/* =========================================================
-   MASTER PANEL LOCK
-========================================================= */
-
-function setMasterPanel(panel,locked,label){
-  if(!panel) return;
-  panel.classList.toggle("locked",locked);
-  panel.querySelectorAll("input,button:not(.secondary)").forEach(element=>{element.disabled=locked;});
-  if(locked){
-    const hint=panel.querySelector(".hint");
-    if(hint) hint.textContent="🔒 "+label+" is locked. Use Hard Reset to upload it again.";
-  }
-}
-
-
-/* =========================================================
-   LOAD STATUS
-========================================================= */
+function hideProgress(){const w=$('uploadProgress');if(w)w.style.display='none';}
 
 async function loadStatus(){
   try{
-    const data=await apiJSON("/api/status");
-    state=data;
-    const mvuDetailCount=Number(state.mvuDetailCount||0);
-
-    calculateUniqueCounts(state);
-
-    const needsMasterUpload=mvuDetailCount===0;
-    if(needsMasterUpload) showMasterArea(); else hideMasterArea();
-
-    setMasterPanel($("mvuDetailPanel"),mvuDetailCount>0,"MVU Detail");
-  }catch(error){
-    console.error("Status Load Error:",error);
-    showMasterArea();
-    setMasterPanel($("mvuDetailPanel"),false,"MVU Detail");
-    show("Unable to read server status: "+(error?.message||"Unknown error"),"error");
-  }
+    const r=await fetch('/api/status',{cache:'no-store'});
+    const text=await r.text();
+    let x;try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response.');}
+    if(!r.ok||!x.ok)throw new Error(x.error||'Unable to read server status.');
+    state=x;
+    set('districtCount',Number(x.uniqueDistrictCount||0).toLocaleString());
+    set('blockCount',Number(x.uniqueBlockCount||0).toLocaleString());
+    set('mvuDetailCount',Number(x.mvuDetailCount||0).toLocaleString());
+    const available=!!x.masterUploadAvailable;
+    const area=$('masterArea'),info=$('resetInfo');
+    if(area)area.classList.toggle('show',available);
+    if(info)info.classList.toggle('show',available);
+    if(x.latest){
+      set('latestDate',(x.latest.firstDateDisplay||'')+(x.latest.secondDateDisplay?' → '+x.latest.secondDateDisplay:''));
+      set('latestSource',x.latest.sourceFile||'');
+    }else{set('latestDate','—');set('latestSource','Not generated');}
+  }catch(e){show('Unable to read server status: '+e.message,'error');}
 }
 
-
-/* =========================================================
-   SUMMARY COUNTS
-========================================================= */
-
-function setText(id,value){
-  const el=$(id);
-  if(el) el.textContent=String(value??"");
-}
-
-function calculateUniqueCounts(serverState){
-  setText("districtCount",Number(serverState?.uniqueDistrictCount||0).toLocaleString());
-  setText("blockCount",Number(serverState?.uniqueBlockCount||0).toLocaleString());
-}
-
-
-/* =========================================================
-   EXCEL READER
-========================================================= */
-
-async function readWorkbook(file,sheetName,mode="json"){
-  showUploadProgress("Reading Excel file…",0);
-  const buffer=await file.arrayBuffer();
-  updateUploadProgress(35,0,"Reading Excel file…");
-  const wb=XLSX.read(buffer,{type:"array",cellDates:true});
-  updateUploadProgress(70,0,"Reading worksheet…");
-  const actualSheet=sheetName&&wb.SheetNames.includes(sheetName)?sheetName:wb.SheetNames[0];
-  if(!actualSheet) throw new Error("Excel file has no worksheet.");
-  const ws=wb.Sheets[actualSheet];
-  if(!ws) throw new Error(`Sheet not found: ${sheetName||actualSheet}`);
-  const rows=mode==="raw"?XLSX.utils.sheet_to_json(ws,{header:1,defval:""}):XLSX.utils.sheet_to_json(ws,{defval:""});
-  updateUploadProgress(100,Math.max(0,rows.length),"Excel file ready");
-  return rows;
-}
-
-
-/* =========================================================
-   SEND WITH REAL BROWSER UPLOAD PROGRESS
-========================================================= */
-
-async function sendRows(url,file,rows){
-  const isMVUDetail=url==="/api/upload/mvudetail";
-  const isMaster=isMVUDetail;
-
-  let dataRows=Array.isArray(rows)?rows:[];
-  
-
-  const totalRows=dataRows.length;
-  const chunkSize=isMaster?50:totalRows;
-  let totalSaved=0;
-
-  const sendChunk=(chunk,mode,index,totalChunks)=>new Promise((resolve,reject)=>{
-    const xhr=new XMLHttpRequest();
-    xhr.open("POST",url,true);
-    xhr.setRequestHeader("Content-Type","application/json");
-    xhr.setRequestHeader("Accept","application/json");
-    xhr.timeout=5*60*1000;
-
-    xhr.upload.onprogress=(event)=>{
-      if(event.lengthComputable){
-        const chunkPct=event.loaded/event.total;
-        const overall=totalChunks?((index+chunkPct)/totalChunks)*100:0;
-        updateUploadProgress(overall,totalRows,`Uploading batch ${index+1} of ${totalChunks}…`);
-      }
+function rowsFromSheet(file,sheetName){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        const ws=sheetName?(wb.Sheets[sheetName]||wb.Sheets[wb.SheetNames[0]]):wb.Sheets[wb.SheetNames[0]];
+        if(!ws)throw new Error('Excel sheet not found.');
+        resolve(XLSX.utils.sheet_to_json(ws,{defval:''}));
+      }catch(err){reject(err);}
     };
-
-    xhr.onload=()=>{
-      const text=xhr.responseText||"";
-      let data;
-      try{data=JSON.parse(text)}
-      catch(error){reject(new Error("Server returned invalid JSON or an HTML error page."));return;}
-      if(xhr.status<200||xhr.status>=300||data.ok===false){
-        reject(new Error(data.error||data.message||`Server request failed (${xhr.status}).`));
-        return;
-      }
-      totalSaved+=Number(data.count||0);
-      const completed=Math.min((index+1)*chunkSize,totalRows);
-      updateUploadProgress(totalRows?((completed/totalRows)*100):100,totalRows,
-        `Uploaded ${completed.toLocaleString()} of ${totalRows.toLocaleString()} rows`);
-      resolve(data);
-    };
-
-    xhr.onerror=()=>reject(new Error("Network error while uploading data."));
-    xhr.ontimeout=()=>reject(new Error("Upload timed out. Please try again."));
-    try{
-      xhr.send(JSON.stringify({filename:file.name,rows:chunk,mode}));
-    }catch(error){reject(error);}
+    reader.onerror=()=>reject(reader.error||new Error('Unable to read file.'));
+    reader.readAsArrayBuffer(file);
   });
-
-  if(!totalRows) throw new Error("No data rows found in the selected Excel file.");
-
-  const totalChunks=Math.ceil(totalRows/chunkSize);
-
-  for(let i=0;i<totalChunks;i++){
-    const dataChunk=dataRows.slice(i*chunkSize,(i+1)*chunkSize);
-    const chunk=dataChunk;
-    const mode=totalChunks===1?"replace_finish":(i===0?"start":i===totalChunks-1?"finish":"chunk");
-    await sendChunk(chunk,mode,i,totalChunks);
-  }
-
-  return {
-    ok:true,
-    count:totalSaved,
-    message:`${isMVUDetail?"MVU Detail":"Data"} upload completed. ${totalSaved.toLocaleString()} rows processed.`
-  };
 }
 
-
-/* =========================================================
-   MASTER UPLOAD
-========================================================= */
-
-async function uploadMaster(inputId,url){
-  const input=$(inputId);
-  if(!input?.files?.[0]){
-    show("Please select an Excel file first.","error");
-    return;
+async function sendMVUBatches(filename,rows){
+  const batchSize=100;
+  let total=0;
+  const batches=Math.ceil(rows.length/batchSize);
+  for(let b=0;b<batches;b++){
+    const batch=rows.slice(b*batchSize,(b+1)*batchSize);
+    let mode='chunk';
+    if(b===0&&b===batches-1)mode='replace_finish';
+    else if(b===0)mode='start';
+    else if(b===batches-1)mode='finish';
+    const r=await fetch('/api/upload/mvudetail',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({filename,rows:batch,mode})
+    });
+    const text=await r.text();let x;
+    try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response on batch '+(b+1));}
+    if(!r.ok||!x.ok)throw new Error(x.error||`Upload failed on batch ${b+1}.`);
+    total+=Number(x.count||batch.length);
+    setProgress(total,rows.length,'Uploading MVU Details');
   }
-  const file=input.files[0];
-  const button=$("mvuDetailBtn");
-  const oldText=button?.textContent||"Upload";
+  return total;
+}
+
+async function uploadMVUDetail(){
+  const input=$('mvuDetailFile');
+  if(!input?.files?.[0])return show('Please select the MVU Detail Excel file first.','error');
+  const btn=$('mvuDetailBtn');
   try{
-    if(button) button.disabled=true;
-    showUploadProgress("Reading Excel file…",0);
-    show("Reading "+file.name+" in your browser…","info");
-
-    let rows;
-    rows=await readWorkbook(file,null,"json");
-
-    if(!rows.length) throw new Error("The selected Excel sheet is empty.");
-
-    showUploadProgress("Uploading data…",rows.length);
-    updateUploadProgress(0,rows.length,"Uploading data…");
-    const result=await sendRows(url,file,rows);
-
-    finishUploadProgress(rows.length,"Upload completed");
-    show(result.message||"Upload completed successfully.","success");
-    input.value="";
+    btn.disabled=true;
+    show('Reading MVU Detail file…','info');
+    setProgress(0,1,'Preparing upload');
+    const rows=await rowsFromSheet(input.files[0]);
+    if(!rows.length)throw new Error('MVU Detail sheet is empty.');
+    setProgress(0,rows.length,'Uploading MVU Details');
+    const n=await sendMVUBatches(input.files[0].name,rows);
+    input.value='';
+    setProgress(n,n,'Upload complete');
     await loadStatus();
-    showMasterArea();
-  }catch(error){
-    console.error("Master Upload Error:",error);
-    show(error.message||"Upload failed.","error");
-  }finally{
-    if(button){button.disabled=false;button.textContent=oldText;}
-  }
+    show(`MVU Details uploaded successfully: ${n.toLocaleString()} rows. Old data was replaced automatically.`,'success');
+    setTimeout(hideProgress,1200);
+  }catch(e){show(e.message,'error');console.error(e);}
+  finally{btn.disabled=false;}
 }
-
 
 async function generate(){
-  if(!state) await loadStatus();
-
-  if(!state || !Number(state.mvuDetailCount||0)){
-    show("Please upload MVU Detail master first. If you want to upload it again, click Hard Reset.","error");
-    return;
-  }
-
-  const input=$("detailedFile");
-  if(!input?.files?.[0]){
-    show("Please select DetailedReport.xlsx first.","error");
-    return;
-  }
-
-  const file=input.files[0];
-  const button=$("generateBtn");
-  const oldText=button.textContent;
-
+  if(!state||!state.mvuDetailCount)return show('Please upload MVU Detail first.','error');
+  const input=$('detailedFile');
+  if(!input?.files?.[0])return show('Please select DetailedReport.xlsx first.','error');
+  const btn=$('generateBtn');
   try{
-    button.disabled=true;
-    button.textContent="Reading Excel…";
-    show("Reading DetailedReport.xlsx in your browser…","info");
-
-    const rows=await readWorkbook(file,"DetailedReport","json");
-    if(!rows.length) throw new Error("DetailedReport sheet is empty.");
-
-    button.textContent="Uploading…";
-    showUploadProgress("Uploading Detailed Report…",rows.length);
-    updateUploadProgress(0,rows.length,"Uploading Detailed Report…");
-    show("Excel processed in browser. Uploading report data…","info");
-
-    const result=await sendRows("/api/generate",file,rows);
-
-    if(!result.ok) throw new Error(result.error||"Report generation failed.");
-
-    input.value="";
-    show("Report generated successfully. Opening Result Page…","success");
-
-    setTimeout(()=>{
-      window.location.href="/result.html";
-    },350);
-  }catch(error){
-    console.error("Generate Error:",error);
-    show(error.message||"Report generation failed.","error");
-  }finally{
-    button.disabled=false;
-    button.textContent=oldText;
-  }
+    btn.disabled=true;
+    show('Reading Detailed Report in your browser…','info');
+    const all=await rowsFromSheet(input.files[0]);
+    if(!all.length)throw new Error('Detailed Report is empty.');
+    const required=['CreatedDateTime','LevelType','Type','CloseRemarks','TicketStatus','SubStatus'];
+    const mvuKeys=['MVU Number','MVUNumber','MVU No','MVU No.','Vehicle Number','Vehicle No','Vehicle No.'];
+    const mvuKey=mvuKeys.find(k=>k in all[0]);
+    if(!mvuKey)throw new Error('Detailed Report must contain MVU Number column.');
+    const rows=all.map(r=>{const o={};for(const k of required)o[k]=r[k]??'';o[mvuKey]=r[mvuKey]??'';if('TicketID' in r)o.TicketID=r.TicketID??'';return o;});
+    show(`Sending ${rows.length.toLocaleString()} rows for report calculation…`,'info');
+    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:input.files[0].name,rows})});
+    const text=await r.text();let x;try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response for Generate Report.');}
+    if(!r.ok||!x.ok)throw new Error(x.error||'Report generation failed.');
+    input.value='';show('Report generated successfully. Opening Result Page…','success');
+    window.location.href='/result.html';
+  }catch(e){show(e.message,'error');console.error(e);}
+  finally{btn.disabled=false;}
 }
-
-/* =========================================================
-   HARD RESET
-========================================================= */
 
 async function hardReset(){
-
-  /*
-    Password
-  */
-
-  const password =
-    prompt(
-      "Hard Reset Password:"
-    );
-
-
-  if(
-    password === null
-  ){
-
-    return;
-
-  }
-
-
-  if(
-    password !== "1122"
-  ){
-
-    show(
-      "Wrong password. Hard Reset cancelled.",
-      "error"
-    );
-
-    return;
-
-  }
-
-
-  const confirmed =
-    confirm(
-      "Hard Reset will NOT delete existing data or report. It will only enable MVU Detail update. Continue?"
-    );
-
-
-  if(!confirmed){
-
-    return;
-
-  }
-
-
-  const button =
-    $("hardResetBtn");
-
-
-  const oldText =
-    button.textContent;
-
-
+  const password=prompt('Hard Reset Password:');
+  if(password===null)return;
+  if(password!=='1122')return show('Wrong password. Hard Reset cancelled.','error');
+  if(!confirm('Hard Reset will keep the current report and MVU Details. It only unlocks MVU Detail upload so you can replace the old details. Continue?'))return;
   try{
-
-    button.disabled =
-      true;
-
-
-    button.textContent =
-      "Resetting…";
-
-
-    show(
-      "Performing Hard Reset…",
-      "info"
-    );
-
-
-    /*
-      IMPORTANT:
-      Exact backend route.
-    */
-
-    const result =
-      await apiJSON(
-        "/api/reset/hard",
-        {
-          method:"POST",
-
-          headers:{
-            "Content-Type":
-              "application/json",
-
-            "Accept":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-              password:"1122"
-            })
-        }
-      );
-
-
-    if(
-      !result.ok
-    ){
-
-      throw new Error(
-        result.error ||
-        "Hard Reset failed."
-      );
-
-    }
-
-
-    /*
-      Reset success
-    */
-
-    state =
-      null;
-
-
-    /*
-      अब MVU Detail
-      boxes दिखाई देंगे।
-    */
-
-    showMasterArea();
-
-
-    /*
-      Reset के बाद controls
-      unlock करें।
-    */
-
-    setMasterPanel($("mvuDetailPanel"),false,"MVU Detail");
-
-
-    /*
-      Counts reset
-    */
-
-    setText("districtCount", "0");
-    setText("blockCount", "0");
-    
-
-
-    show(
-      result.message ||
-      "Hard Reset completed successfully.",
-      "success"
-    );
-
-
-    /*
-      Important:
-      loadStatus() यहां तुरंत call नहीं करना,
-      क्योंकि वह master area को फिर hide कर देगा।
-    */
-
-
-  }
-  catch(error){
-
-    console.error(
-      "Hard Reset Error:",
-      error
-    );
-
-
-    show(
-      "Hard Reset failed: " +
-      error.message,
-      "error"
-    );
-
-  }
-  finally{
-
-    button.disabled =
-      false;
-
-
-    button.textContent =
-      oldText;
-
-  }
-
+    const r=await fetch('/api/reset/hard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});
+    const text=await r.text();let x;try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response.');}
+    if(!r.ok||!x.ok)throw new Error(x.error||'Hard Reset failed.');
+    show(x.message,'success');
+    await loadStatus();
+  }catch(e){show(e.message,'error');}
 }
 
-
-
-/* =========================================================
-   BUTTON EVENTS
-========================================================= */
-
-$("mvuDetailBtn").onclick =
-  () => uploadMaster("mvuDetailFile","/api/upload/mvudetail");
-
-
-$("generateBtn").onclick =
-  generate;
-
-
-$("hardResetBtn").onclick =
-  hardReset;
-
-
-
-/* =========================================================
-   INITIAL LOAD
-========================================================= */
-
+$('mvuDetailBtn').onclick=uploadMVUDetail;
+$('generateBtn').onclick=generate;
+$('hardResetBtn').onclick=hardReset;
 loadStatus();
-
-
-/*
-  हर 5 सेकंड status check करें।
-
-  लेकिन Hard Reset के बाद master area
-  user के सामने खुला रहे इसलिए automatic
-  loadStatus() reset के तुरंत बाद नहीं होता।
-*/
-
-setInterval(
-  async () => {
-
-    /*
-      अगर reset info खुला है,
-      तो master area को hide मत करें।
-    */
-
-    const resetVisible =
-      $("resetInfo")
-        .classList
-        .contains("show");
-
-
-    try{
-
-      const data =
-        await apiJSON(
-          "/api/status"
-        );
-
-
-      state =
-        data;
-
-
-      calculateUniqueCounts(
-        state
-      );
-
-
-      const needsMasterUpload =
-        Number(state.mvuDetailCount || 0) === 0;
-
-      if(resetVisible || needsMasterUpload){
-        showMasterArea();
-      }else{
-        hideMasterArea();
-      }
-
-      if(!resetVisible){
-
-        setMasterPanel(
-          $("mvuDetailPanel"),
-          Number(state.mvuDetailCount || 0) > 0,
-          "MVU Detail"
-        );
-
-      }
-
-    }
-    catch(error){
-
-      console.error(
-        "Background Status Error:",
-        error
-      );
-
-    }
-
-  },
-  5000
-);
-
+setInterval(loadStatus,10000);
 </script>
 
 </body>
