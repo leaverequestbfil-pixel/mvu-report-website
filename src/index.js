@@ -152,7 +152,7 @@ function json(data,status=200){return new Response(JSON.stringify(data),{status,
 async function getFile(request){const form=await request.formData();const file=form.get("file");if(!(file instanceof File))throw new Error("File is required.");if(file.size>MAX_FILE_SIZE)throw new Error("File is larger than 50 MB.");return {buffer:await file.arrayBuffer(),name:file.name||"uploaded.xlsx"};}
 
 async function api(request,env){
-  const db=env.DB; const url=new URL(request.url); const path=url.pathname; const store=await loadStore(db);
+  const db=env.DB; const url=new URL(request.url); const path=url.pathname; let store=await loadStore(db);
   if(path==="/api/status"&&request.method==="GET"){
     const latest=store.generatedReports[0];return json({ok:true,mappingCount:Object.keys(store.villageMapping).length,weekOffCount:Object.keys(store.weekOff).length,mastersLocked:Object.keys(store.villageMapping).length>0&&Object.keys(store.weekOff).length>0,latest:latest?latest.report_json:null,logs:store.uploadLog.slice(0,8)});
   }
