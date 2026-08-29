@@ -160,7 +160,9 @@ async function getJsonBody(request) {
 async function api(request,env){
   const db=env.DB; const url=new URL(request.url); const path=url.pathname; let store=await loadStore(db);
   if(path==="/api/status"&&request.method==="GET"){
-    const latest=store.generatedReports[0];return json({ok:true,mappingCount:Object.keys(store.villageMapping).length,weekOffCount:Object.keys(store.weekOff).length,mastersLocked:Object.keys(store.villageMapping).length>0&&Object.keys(store.weekOff).length>0,latest:latest?latest.report_json:null,logs:store.uploadLog.slice(0,8)});
+    const latest=store.generatedReports[0];const mappingCount=Object.keys(store.villageMapping).length;
+    const weekOffCount=Object.keys(store.weekOff).length;
+    return json({ok:true,mappingCount,weekOffCount,mastersLocked:mappingCount>0&&weekOffCount>0,masterUploadAvailable:mappingCount===0||weekOffCount===0,latest:latest?latest.report_json:null,logs:store.uploadLog.slice(0,8)});
   }
   if(path==="/api/upload/mapping"&&request.method==="POST"){
     try{
@@ -208,7 +210,20 @@ async function api(request,env){
     const rows=Object.values(store.weekOff).map(r=>({Block:r.block||"","Vehicle Number":r.vehicle_no||"","Week Off":r.week_off||""}));const data=rows.length?rows:[{Block:"","Vehicle Number":"","Week Off":""}];const ws=XLSX.utils.json_to_sheet(data,{header:["Block","Vehicle Number","Week Off"]});ws["!cols"]=[{wch:28},{wch:20},{wch:16}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Daily Data Entry");const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":"attachment; filename=\"MVU_Week_Off_Template.xlsx\""}});
   }
   if(path==="/api/reset/hard"&&request.method==="POST"){
-    let body={};try{body=await request.json();}catch{}if(clean(body.password)!=="1122")return json({ok:false,error:"Wrong password."},403);store=emptyStore();await saveStore(db,store);return json({ok:true,message:"Hard Reset completed. Village Mapping, Week Off Master and current report have been removed."});
+    let body={};
+    try{body=await request.json();}catch{}
+    if(clean(body.password)!=="1122") return json({ok:false,error:"Wrong password."},403);
+    const resetStore=emptyStore();
+    await saveStore(db,resetStore);
+    const verify=await loadStore(db);
+    return json({
+      ok:true,
+      mappingCount:Object.keys(verify.villageMapping).length,
+      weekOffCount:Object.keys(verify.weekOff).length,
+      latest:null,
+      masterUploadAvailable:true,
+      message:"Hard Reset completed. Village Mapping, Week Off Master and current report have been removed. You can now upload new masters."
+    });
   }
   if(path==="/api/reset/report"&&request.method==="POST"){store.generatedReports=[];await saveStore(db,store);return json({ok:true,message:"Daily report reset. Please upload a new Detailed Report."});}
   return json({ok:false,error:`API route not found: ${request.method} ${path}`},404);
