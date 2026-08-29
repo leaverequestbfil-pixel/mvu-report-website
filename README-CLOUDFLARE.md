@@ -16,3 +16,7 @@ This version is adapted from the original Express/local-file app for Cloudflare 
 4. Open the Worker URL and test `/api/status` and the upload page.
 
 The old `server.js` remains in the repository for local/legacy use, but Cloudflare deploys `src/index.js` because that is the `main` entry in `wrangler.toml`.
+
+
+## D1 large-file fix
+Village Mapping and Week Off data are stored in normalized D1 tables in batches instead of one large JSON row. This prevents SQLITE_TOOBIG for large Excel masters. Hard Reset clears the normalized tables and the legacy app_state table.
