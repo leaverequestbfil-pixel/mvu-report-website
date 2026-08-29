@@ -1027,157 +1027,33 @@ input[type="file"]:disabled{
 
 
 <!-- =======================================================
-     RESET INFO
-======================================================= -->
-
-<div
-  id="resetInfo"
-  class="reset-info">
-
-  🔓 Hard Reset completed.
-  Village Mapping और Week Off Master upload options अब उपलब्ध हैं।
-
-</div>
-
-
-
-<!-- =======================================================
      MASTER AREA
-     SHOWN WHEN A MASTER IS MISSING OR AFTER HARD RESET
 ======================================================= -->
 
-<section
-  id="masterArea">
+<div id="resetInfo" class="reset-info">🔓 Hard Reset complete. Existing data is safe. MVU Detail update option is now available.</div>
 
-
-  <!-- =====================================================
-       VILLAGE MAPPING
-  ====================================================== -->
-
-  <div
-    class="panel"
-    id="mappingPanel">
-
-
+<section id="masterArea">
+  <div class="panel" id="mvuDetailPanel">
     <div class="panel-title">
-
-      <span class="step">
-        2
-      </span>
-
+      <span class="step">2</span>
       <div>
-
-        <h2>
-          Village Mapping
-        </h2>
-
-        <p>
-          Panchayat ID → MVU/Gadi Number
-        </p>
-
+        <h2>MVU Detail</h2>
+        <p>District • Block • MVU Number • Week Off</p>
       </div>
-
     </div>
 
-
-    <input
-      id="mappingFile"
-      type="file"
-      accept=".xlsx,.xls">
-
-
-    <button
-      type="button"
-      class="big-btn"
-      id="mappingBtn">
-
-      Save / Update Mapping
-
-    </button>
-
-
-    <div class="hint">
-
-      Upload the latest Village Mapping Excel file.
-
-    </div>
-
-
-  </div>
-
-
-
-  <!-- =====================================================
-       WEEK OFF
-  ====================================================== -->
-
-  <div
-    class="panel"
-    id="weekoffPanel">
-
-
-    <div class="panel-title">
-
-      <span class="step">
-        3
-      </span>
-
-      <div>
-
-        <h2>
-          Week Off / Template
-        </h2>
-
-        <p>
-          Vehicle-wise weekly off master
-        </p>
-
-      </div>
-
-    </div>
-
-
-    <input
-      id="weekoffFile"
-      type="file"
-      accept=".xlsx,.xls">
-
+    <input id="mvuDetailFile" type="file" accept=".xlsx,.xls">
 
     <div class="button-row">
-
-      <button
-        type="button"
-        class="big-btn"
-        id="weekoffBtn">
-
-        Save / Update Week Off
-
-      </button>
-
-
-      <a
-        class="button secondary big-btn"
-        href="/api/weekoff/template">
-
-        Download Template
-
-      </a>
-
+      <button type="button" class="big-btn" id="mvuDetailBtn">Save / Update MVU Detail</button>
+      <a class="button secondary big-btn" href="/api/mvudetail/template">Download MVU Detail Format</a>
     </div>
-
 
     <div class="hint">
-
-      Upload the latest Week Off / Template Excel file.
-
+      Format: District, Block, MVU Number, Week Off. Uploading a new file automatically replaces the old MVU Detail data.
     </div>
-
-
   </div>
-
-
 </section>
-
 
 
 <!-- =======================================================
@@ -1414,21 +1290,18 @@ async function loadStatus(){
   try{
     const data=await apiJSON("/api/status");
     state=data;
-    const mappingCount=Number(state.mappingCount||0);
-    const weekOffCount=Number(state.weekOffCount||0);
+    const mvuDetailCount=Number(state.mvuDetailCount||0);
 
     calculateUniqueCounts(state);
 
-    const needsMasterUpload=mappingCount===0||weekOffCount===0;
+    const needsMasterUpload=mvuDetailCount===0;
     if(needsMasterUpload) showMasterArea(); else hideMasterArea();
 
-    setMasterPanel($("mappingPanel"),mappingCount>0,"Village Mapping");
-    setMasterPanel($("weekoffPanel"),weekOffCount>0,"Week Off Master");
+    setMasterPanel($("mvuDetailPanel"),mvuDetailCount>0,"MVU Detail");
   }catch(error){
     console.error("Status Load Error:",error);
     showMasterArea();
-    setMasterPanel($("mappingPanel"),false,"Village Mapping");
-    setMasterPanel($("weekoffPanel"),false,"Week Off Master");
+    setMasterPanel($("mvuDetailPanel"),false,"MVU Detail");
     show("Unable to read server status: "+(error?.message||"Unknown error"),"error");
   }
 }
@@ -1474,19 +1347,11 @@ async function readWorkbook(file,sheetName,mode="json"){
 ========================================================= */
 
 async function sendRows(url,file,rows){
-  const isMapping=url==="/api/upload/mapping";
-  const isWeekoff=url==="/api/upload/weekoff";
-  const isMaster=isMapping||isWeekoff;
+  const isMVUDetail=url==="/api/upload/mvudetail";
+  const isMaster=isMVUDetail;
 
   let dataRows=Array.isArray(rows)?rows:[];
-  let weekoffHeader=null;
-
-  // Week Off is a raw worksheet: keep its header on every batch.
-  // Otherwise batch 2+ would not know which columns are Vehicle/Week Off.
-  if(isWeekoff && dataRows.length){
-    weekoffHeader=dataRows[0];
-    dataRows=dataRows.slice(1);
-  }
+  
 
   const totalRows=dataRows.length;
   const chunkSize=isMaster?50:totalRows;
@@ -1536,7 +1401,7 @@ async function sendRows(url,file,rows){
 
   for(let i=0;i<totalChunks;i++){
     const dataChunk=dataRows.slice(i*chunkSize,(i+1)*chunkSize);
-    const chunk=isWeekoff?[weekoffHeader,...dataChunk]:dataChunk;
+    const chunk=dataChunk;
     const mode=totalChunks===1?"replace_finish":(i===0?"start":i===totalChunks-1?"finish":"chunk");
     await sendChunk(chunk,mode,i,totalChunks);
   }
@@ -1544,7 +1409,7 @@ async function sendRows(url,file,rows){
   return {
     ok:true,
     count:totalSaved,
-    message:`${isMapping?"Village Mapping":isWeekoff?"Week Off":"Data"} upload completed. ${totalSaved.toLocaleString()} rows processed.`
+    message:`${isMVUDetail?"MVU Detail":"Data"} upload completed. ${totalSaved.toLocaleString()} rows processed.`
   };
 }
 
@@ -1560,7 +1425,7 @@ async function uploadMaster(inputId,url){
     return;
   }
   const file=input.files[0];
-  const button=url==="/api/upload/mapping"?$("mappingBtn"):$("weekoffBtn");
+  const button=$("mvuDetailBtn");
   const oldText=button?.textContent||"Upload";
   try{
     if(button) button.disabled=true;
@@ -1568,8 +1433,7 @@ async function uploadMaster(inputId,url){
     show("Reading "+file.name+" in your browser…","info");
 
     let rows;
-    if(url==="/api/upload/mapping") rows=await readWorkbook(file,"UpdateVillageMapping","json");
-    else rows=await readWorkbook(file,"Daily Data Entry","raw");
+    rows=await readWorkbook(file,null,"json");
 
     if(!rows.length) throw new Error("The selected Excel sheet is empty.");
 
@@ -1594,10 +1458,8 @@ async function uploadMaster(inputId,url){
 async function generate(){
   if(!state) await loadStatus();
 
-  if(!state ||
-     !Number(state.mappingCount||0) ||
-     !Number(state.weekOffCount||0)){
-    show("Please upload Village Mapping and Week Off master first. If you want to upload them again, click Hard Reset.","error");
+  if(!state || !Number(state.mvuDetailCount||0)){
+    show("Please upload MVU Detail master first. If you want to upload it again, click Hard Reset.","error");
     return;
   }
 
@@ -1684,7 +1546,7 @@ async function hardReset(){
 
   const confirmed =
     confirm(
-      "Hard Reset will remove Village Mapping, Week Off Master and the current report. Continue?"
+      "Hard Reset will NOT delete existing data or report. It will only enable MVU Detail update. Continue?"
     );
 
 
@@ -1767,7 +1629,7 @@ async function hardReset(){
 
 
     /*
-      अब mapping और weekoff
+      अब MVU Detail
       boxes दिखाई देंगे।
     */
 
@@ -1779,18 +1641,7 @@ async function hardReset(){
       unlock करें।
     */
 
-    setMasterPanel(
-      $("mappingPanel"),
-      false,
-      "Village Mapping"
-    );
-
-
-    setMasterPanel(
-      $("weekoffPanel"),
-      false,
-      "Week Off Master"
-    );
+    setMasterPanel($("mvuDetailPanel"),false,"MVU Detail");
 
 
     /*
@@ -1799,7 +1650,7 @@ async function hardReset(){
 
     setText("districtCount", "0");
     setText("blockCount", "0");
-    setText("villageCount", "0");
+    
 
 
     show(
@@ -1851,20 +1702,8 @@ async function hardReset(){
    BUTTON EVENTS
 ========================================================= */
 
-$("mappingBtn").onclick =
-  () =>
-    uploadMaster(
-      "mappingFile",
-      "/api/upload/mapping"
-    );
-
-
-$("weekoffBtn").onclick =
-  () =>
-    uploadMaster(
-      "weekoffFile",
-      "/api/upload/weekoff"
-    );
+$("mvuDetailBtn").onclick =
+  () => uploadMaster("mvuDetailFile","/api/upload/mvudetail");
 
 
 $("generateBtn").onclick =
@@ -1923,8 +1762,7 @@ setInterval(
 
 
       const needsMasterUpload =
-        Number(state.mappingCount || 0) === 0 ||
-        Number(state.weekOffCount || 0) === 0;
+        Number(state.mvuDetailCount || 0) === 0;
 
       if(resetVisible || needsMasterUpload){
         showMasterArea();
@@ -1935,20 +1773,9 @@ setInterval(
       if(!resetVisible){
 
         setMasterPanel(
-          $("mappingPanel"),
-          Number(
-            state.mappingCount || 0
-          ) > 0,
-          "Village Mapping"
-        );
-
-
-        setMasterPanel(
-          $("weekoffPanel"),
-          Number(
-            state.weekOffCount || 0
-          ) > 0,
-          "Week Off Master"
+          $("mvuDetailPanel"),
+          Number(state.mvuDetailCount || 0) > 0,
+          "MVU Detail"
         );
 
       }
