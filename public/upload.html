@@ -1117,7 +1117,7 @@ async function loadStatus(){
   }catch(e){show('Unable to read server status: '+e.message,'error');}
 }
 
-function rowsFromSheet(file,sheetName){
+function rowsFromSheet(file,sheetName,asArrays=false){
   return new Promise((resolve,reject)=>{
     const reader=new FileReader();
     reader.onload=e=>{
@@ -1125,7 +1125,10 @@ function rowsFromSheet(file,sheetName){
         const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
         const ws=sheetName?(wb.Sheets[sheetName]||wb.Sheets[wb.SheetNames[0]]):wb.Sheets[wb.SheetNames[0]];
         if(!ws)throw new Error('Excel sheet not found.');
-        resolve(XLSX.utils.sheet_to_json(ws,{defval:''}));
+        resolve(XLSX.utils.sheet_to_json(ws,asArrays
+          ? {header:1,defval:''}
+          : {defval:''}
+        ));
       }catch(err){reject(err);}
     };
     reader.onerror=()=>reject(reader.error||new Error('Unable to read file.'));
@@ -1164,7 +1167,7 @@ async function uploadMVUDetail(){
     btn.disabled=true;
     show('Reading MVU Detail file…','info');
     setProgress(0,1,'Preparing upload');
-    const rows=await rowsFromSheet(input.files[0]);
+    const rows=await rowsFromSheet(input.files[0],null,true);
     if(!rows.length)throw new Error('MVU Detail sheet is empty.');
     setProgress(0,rows.length,'Uploading MVU Details');
     const n=await sendMVUBatches(input.files[0].name,rows);
