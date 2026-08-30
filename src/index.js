@@ -81,26 +81,32 @@ async function processDetailed(db,rows,originalName,masters){
   if(!paravetCol)throw new Error("Detailed Report must contain ParavetID column.");
   const paravetNameCols=["Paravet Name","ParavetName","Paravet Name ","Employee Name","EmployeeName","Paravet"];
 
+  // Main MVU calculation removes TA / ENQUIRY / WT as before.
   const filtered=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY"&&!norm(r.CloseRemarks).includes("WT"));
+  // Hospital Area detection happens after TA / ENQUIRY removal, but WT rows
+  // are retained here so WT Hospital Area tickets are available in details.
+  const hospitalSource=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY");
   const detailByParavet=new Map(Object.values(masters.mvuDetail).filter(r=>clean(r.paravet_id)).map(r=>[norm(r.paravet_id),r]));
   const records=[],unmatched=[],hospitalArea=[],dates=new Set();
 
-  for(const r of filtered){
-    const d=dateKey(r.CreatedDateTime); if(!d)continue; dates.add(d);
+  // Collect Hospital Area rows separately so WT Hospital Area tickets are
+  // shown in the update/detail download, while never entering MVU totals.
+  for(const r of hospitalSource){
+    const d=dateKey(r.CreatedDateTime); if(!d)continue;
     const paravet=clean(r[paravetCol]);
     const ticketId=firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]);
     const sourceDistrict=firstField(r,["District","District Name"]);
     const sourceBlock=firstField(r,["Block","Block Name"]);
     const sourceMvu=firstField(r,["MVU Number","MVUNumber","MVU No","MVU No.","Vehicle Number","Vehicle No","Vehicle No."]);
     const sourceParavetName=firstField(r,paravetNameCols);
-
-    // After TA / ENQUIRY / WT removal, every non-empty ParavetID that does
-    // not start with CAMP is a Hospital Area Ticket. Keep the original row
-    // so the user can download the filtered Detailed Report later.
     if(paravet && !norm(paravet).startsWith("CAMP")){
       hospitalArea.push({date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu,paravetID:paravet,paravetName:sourceParavetName,row:r});
     }
+  }
 
+  for(const r of filtered){
+    const d=dateKey(r.CreatedDateTime); if(!d)continue; dates.add(d);
+    const paravet=clean(r[paravetCol]);
     const m=detailByParavet.get(norm(paravet));
     if(!m){
       const isCamp=norm(paravet).startsWith("CAMP");
