@@ -83,14 +83,28 @@ async function processDetailed(db,rows,originalName,masters){
 
   const filtered=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY"&&!norm(r.CloseRemarks).includes("WT"));
   const detailByParavet=new Map(Object.values(masters.mvuDetail).filter(r=>clean(r.paravet_id)).map(r=>[norm(r.paravet_id),r]));
-  const records=[],unmatched=[],dates=new Set();
+  const records=[],unmatched=[],hospitalArea=[],dates=new Set();
 
   for(const r of filtered){
     const d=dateKey(r.CreatedDateTime); if(!d)continue; dates.add(d);
-    const paravet=clean(r[paravetCol]),m=detailByParavet.get(norm(paravet));
+    const paravet=clean(r[paravetCol]);
+    const ticketId=firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]);
+    const sourceDistrict=firstField(r,["District","District Name"]);
+    const sourceBlock=firstField(r,["Block","Block Name"]);
+    const sourceMvu=firstField(r,["MVU Number","MVUNumber","MVU No","MVU No.","Vehicle Number","Vehicle No","Vehicle No."]);
+    const sourceParavetName=firstField(r,paravetNameCols);
+
+    // After TA / ENQUIRY / WT removal, every non-empty ParavetID that does
+    // not start with CAMP is a Hospital Area Ticket. Keep the original row
+    // so the user can download the filtered Detailed Report later.
+    if(paravet && !norm(paravet).startsWith("CAMP")){
+      hospitalArea.push({date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu,paravetID:paravet,paravetName:sourceParavetName,row:r});
+    }
+
+    const m=detailByParavet.get(norm(paravet));
     if(!m){
       const isCamp=norm(paravet).startsWith("CAMP");
-      if(isCamp)unmatched.push({paravetID:paravet,paravetName:firstField(r,paravetNameCols),date:d,ticketId:firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]),district:firstField(r,["District","District Name"]),block:firstField(r,["Block","Block Name"]),mvuNumber:firstField(r,["MVU Number","MVUNumber","MVU No","MVU No.","Vehicle Number","Vehicle No","Vehicle No."])});
+      if(isCamp)unmatched.push({paravetID:paravet,paravetName:sourceParavetName,date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu});
       continue;
     }
     records.push({date:d,paravetID:paravet,vehicle:m.mvu_number,district:m.district,block:m.block,audio:ticketAudio(r)});
@@ -114,50 +128,28 @@ async function processDetailed(db,rows,originalName,masters){
     return{received:c.Attend+c["Not Attend"]+c.Pending,attend:c.Attend,notAttend:c["Not Attend"],pending:c.Pending};
   }
   function dailyRemark(received,weekOff,date){
-    // Week Off has the highest priority.
-    // It must show even when Total Received is greater than 0.
-    if(!date) return "";
-
-    const day=norm(weekdayName(date));
-    const off=norm(weekOff).replace(/[^A-Z]/g,"");
-    const dayShort=day.slice(0,3);
-    const isWeekOff=off===day || off===dayShort ||
-      (off.length>=3 && day.startsWith(off));
-
-    if(isWeekOff) return "Week off";
-
-    // If it is not a Week Off and no cases were received.
-    if(Number(received)===0) return "Case not received";
-
-    return "";
+    if(received!==0) return "";
+    if(weekOff && date && norm(weekOff)===norm(weekdayName(date))) return "Week off";
+    return "Case not received";
   }
   const rowsOut=roster.map(x=>{
     const y=counts(x.paravetID,firstDate),t=counts(x.paravetID,secondDate);
     return{district:x.district||"",block:x.block||"",vehicle:x.vehicle,paravetID:x.paravetID||"",weekOff:x.week_off||"",
-      yesterday:{received:y.received,attend:y.attend,notAttend:y.notAttend,pending:y.pending,remark:dailyRemark(y.received,x.week_off,firstDate)},
+      yesterday:{received:y.received,attend:y.attend,remark:dailyRemark(y.received,x.week_off,firstDate)},
       today:{received:t.received,attended:t.attend,notAttend:t.notAttend,pending:t.pending,remark:dailyRemark(t.received,x.week_off,secondDate)}};
   });
   const byDistrict=new Map();for(const r of rowsOut){if(!byDistrict.has(r.district))byDistrict.set(r.district,[]);byDistrict.get(r.district).push(r);}
   function total(rs){const o={vehicles:rs.length,yesterdayReceived:0,yesterdayAttend:0,todayReceived:0,attended:0,notAttend:0,pending:0};for(const r of rs){o.yesterdayReceived+=+r.yesterday.received||0;o.yesterdayAttend+=+r.yesterday.attend||0;o.todayReceived+=+r.today.received||0;o.attended+=+r.today.attended||0;o.notAttend+=+r.today.notAttend||0;o.pending+=+r.today.pending||0;}o.attendPct=o.todayReceived?+(o.attended/o.todayReceived*100).toFixed(2):0;o.casesReceived=o.yesterdayReceived+o.todayReceived;o.attendedCases=o.yesterdayAttend+o.attended;o.todayPending=o.pending;return o;}
   const districts=[...byDistrict.entries()].map(([district,items])=>({district,rows:items.sort((a,b)=>{const aa=+a.yesterday.attend+ +a.today.attended,bb=+b.yesterday.attend+ +b.today.attended;if(bb!==aa)return bb-aa;return clean(a.block).localeCompare(clean(b.block));}),total:total(items)})).sort((a,b)=>clean(a.district).localeCompare(clean(b.district)));
   const overall=total(rowsOut);
-  const report={generatedAt:now(),sourceFile:originalName,firstDate,secondDate,firstDateDisplay:displayDate(firstDate),secondDateDisplay:displayDate(secondDate),districts,overall,validation:{sourceRows:rows.length,rowsAfterFilter:filtered.length,unmatchedParavetRows:unmatched.length,datesFound:sortedDates,campUnmatched:unmatched}};
+  const hospitalAreaCounts=Object.entries(hospitalArea.reduce((m,x)=>(m[x.date]=(m[x.date]||0)+1,m),{})).sort(([a],[b])=>a.localeCompare(b)).map(([date,count])=>({date,count,dateDisplay:displayDate(date)}));
+  const report={generatedAt:now(),sourceFile:originalName,firstDate,secondDate,firstDateDisplay:displayDate(firstDate),secondDateDisplay:displayDate(secondDate),districts,overall,validation:{sourceRows:rows.length,rowsAfterFilter:filtered.length,unmatchedParavetRows:unmatched.length,datesFound:sortedDates,campUnmatched:unmatched,hospitalAreaCounts,hospitalAreaRows:hospitalArea}};
   await db.prepare(`INSERT INTO generated_reports(generated_at,first_date,second_date,source_file,report_json) VALUES(?,?,?,?,?)`).bind(report.generatedAt,firstDate,secondDate,originalName,JSON.stringify(report)).run();
   await db.prepare(`DELETE FROM generated_reports WHERE id NOT IN (SELECT id FROM generated_reports ORDER BY id DESC LIMIT 30)`).run();
   await logUpload(db,"detailed",originalName,rows.length,"success",`Generated report for ${displayDate(firstDate)}${secondDate?" and "+displayDate(secondDate):""}. Filtered ${rows.length-filtered.length} rows.`);
   return report;
 }
 
-
-function dailyRemarkForExport(received,weekOff,date){
-  if(!date)return "";
-  if(Number(received)!==0)return "";
-  const day=norm(weekdayName(date));
-  const off=norm(weekOff).replace(/[^A-Z]/g,"");
-  const dayShort=day.slice(0,3);
-  const isWeekOff=off===day||off===dayShort||(off.length>=3&&day.startsWith(off));
-  return isWeekOff?"Week off":"Case not received";
-}
 
 function json(data,status=200){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}});}
 async function bodyJson(request){const b=await request.json();if(!b||typeof b!=="object")throw new Error("JSON body is required.");return b;}
@@ -181,52 +173,31 @@ async function api(request,env){
     catch(e){await logUpload(db,"detailed","",0,"error",e.message);return json({ok:false,error:e.message},400);}
   }
   if(path==="/api/report"&&request.method==="GET"){const report=await getLatestReport(db);if(!report)return json({ok:false,error:"No report generated yet."},404);return json({ok:true,report});}
+  if(path==="/api/report/hospital-area/export"&&request.method==="GET"){
+    const report=await getLatestReport(db);
+    if(!report)return new Response("No report generated yet.",{status:404});
+    const date=clean(url.searchParams.get("date"));
+    const district=clean(url.searchParams.get("district"));
+    if(!date)return new Response("Date is required.",{status:400});
+    const source=Array.isArray(report.validation?.hospitalAreaRows)?report.validation.hospitalAreaRows:[];
+    const rows=source.filter(x=>x.date===date && (!district || district==="ALL" || clean(x.district)===district));
+    if(!rows.length)return new Response("No Hospital Area tickets found for the selected date/district.",{status:404});
+    const data=rows.map(x=>x.row||{});
+    const headers=[...new Set(data.flatMap(x=>Object.keys(x)))];
+    const ws=XLSX.utils.json_to_sheet(data,{header:headers});
+    ws["!autofilter"]={ref:ws["!ref"]};
+    ws["!freeze"]={xSplit:0,ySplit:1};
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Hospital Area Details");
+    const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+    const suffix=district&&district!=="ALL"?`_${district.replace(/[^A-Za-z0-9_-]+/g,"_")}`:"";
+    return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="Hospital_Area_Details_${displayDate(date)}${suffix}.xlsx"`,"Cache-Control":"no-store"}});
+  }
   if(path==="/api/report/export"&&request.method==="GET"){
-    const report=await getLatestReport(db);if(!report)return new Response("No report generated yet.",{status:404});
-    const selectedDistrict=clean(url.searchParams.get("district"));
-    const selected=(Array.isArray(report.districts)?report.districts:[]).filter(d=>!selectedDistrict||selectedDistrict.toUpperCase()==="ALL"||clean(d.district).toUpperCase()===selectedDistrict.toUpperCase());
-    const firstDate=report.firstDateDisplay||"",secondDate=report.secondDateDisplay||"";
-    const rows=[];
-    for(const d of selected){
-      for(const r of (Array.isArray(d.rows)?d.rows:[])){
-        const yReceived=Number(r.yesterday?.received||0), tReceived=Number(r.today?.received||0);
-        const yRemark=dailyRemarkForExport(yReceived,r.weekOff,report.firstDate), tRemark=secondDate?dailyRemarkForExport(tReceived,r.weekOff,report.secondDate):"";
-        rows.push({district:d.district||"",block:r.block||"",vehicle:r.vehicle||"",yReceived,yAttend:Number(r.yesterday?.attend||0),yRemark,tReceived,tAttend:Number(r.today?.attended||0),tNotAttend:Number(r.today?.notAttend||0),tPending:Number(r.today?.pending||0),tRemark});
-      }
-    }
-    const totals={yReceived:0,yAttend:0,tReceived:0,tAttend:0,tNotAttend:0,tPending:0};
-    for(const r of rows){totals.yReceived+=r.yReceived;totals.yAttend+=r.yAttend;totals.tReceived+=r.tReceived;totals.tAttend+=r.tAttend;totals.tNotAttend+=r.tNotAttend;totals.tPending+=r.tPending;}
-    const ws={};
-    const put=(addr,v,s)=>{ws[addr]={v,t:s||typeof v==='number'?'n':'s'};};
-    const green="087348",green2="0f7048",lightGreen="eaf7ef",lightYellow="fff3cd",line="d9e5e0",ink="1c2b2b";
-    const base={font:{name:"Arial",sz:11,color:"1c2b2b"},alignment:{vertical:"center",horizontal:"center",wrapText:true}};
-    const head={...base,font:{name:"Arial",sz:11,bold:true,color:"FFFFFF"},fill:{patternType:"solid",fgColor:{rgb:green}},border:{top:{style:"thin",color:{rgb:"FFFFFF"}},bottom:{style:"thin",color:{rgb:"FFFFFF"}},left:{style:"thin",color:{rgb:"FFFFFF"}},right:{style:"thin",color:{rgb:"FFFFFF"}}}};
-    const dateHead={...head,font:{name:"Arial",sz:12,bold:true,color:"FFFFFF"},fill:{patternType:"solid",fgColor:{rgb:green2}}};
-    const title={...base,font:{name:"Arial",sz:18,bold:true,color:"FFFFFF"},fill:{patternType:"solid",fgColor:{rgb:green2}},alignment:{vertical:"center",horizontal:"center"}};
-    const subTitle={...base,font:{name:"Arial",sz:12,bold:true,color:"FFFFFF"},fill:{patternType:"solid",fgColor:{rgb:green}},alignment:{vertical:"center",horizontal:"center"}};
-    const cell={...base,border:{top:{style:"thin",color:{rgb:line}},bottom:{style:"thin",color:{rgb:line}},left:{style:"thin",color:{rgb:line}},right:{style:"thin",color:{rgb:line}}}};
-    const numberCell={...cell,font:{name:"Arial",sz:11,bold:true,color:{rgb:ink}}};
-    const totalCell={...cell,font:{name:"Arial",sz:11,bold:true,color:{rgb:green}},fill:{patternType:"solid",fgColor:{rgb:"e9f6ef"}}};
-    const grandCell={...cell,font:{name:"Arial",sz:11,bold:true,color:{rgb:"FFFFFF"}},fill:{patternType:"solid",fgColor:{rgb:green2}}};
-    put("A1",`MVU WISE REPORT${selectedDistrict&&selectedDistrict.toUpperCase()!=="ALL"?" — "+selectedDistrict:""}`,title); ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}},{s:{r:2,c:0},e:{r:2,c:9}},{s:{r:4,c:0},e:{r:5,c:0}},{s:{r:4,c:1},e:{r:5,c:1}},{s:{r:4,c:2},e:{r:4,c:4}},{s:{r:4,c:5},e:{r:4,c:9}}];
-    put("A2",selectedDistrict&&selectedDistrict.toUpperCase()!=="ALL"?`${selectedDistrict} DISTRICT • Madhya Pradesh`:"ALL DISTRICTS • Madhya Pradesh",subTitle);
-    put("A3",`📅 ${firstDate}${secondDate?" → "+secondDate:""}`,subTitle);
-    const headers=["District","Block / Vehicle","Total Received","Attend","Remark","Total Received","Attended","Not Attend","Pending","Remark"];
-    headers.forEach((h,i)=>put(`${String.fromCharCode(65+i)}6`,h,head));
-    put("A5","District",head);put("B5","Block / Vehicle",head);put("C5",firstDate,dateHead);put("F5",secondDate||"Today",dateHead);
-    let rr=7;
-    for(const r of rows){
-      const vals=[r.district,r.block+(r.vehicle?`\n${r.vehicle}`:""),r.yReceived,r.yAttend,r.yRemark,r.tReceived,r.tAttend,r.tNotAttend,r.tPending,r.tRemark];
-      vals.forEach((v,i)=>{const addr=`${String.fromCharCode(65+i)}${rr}`;let st=typeof v==='number'?numberCell:cell;if(typeof v==='string'&&/^week\s*off$/i.test(v))st={...cell,fill:{patternType:"solid",fgColor:{rgb:lightYellow}},font:{name:"Arial",sz:11,bold:true,color:{rgb:"8a6200"}}};if(typeof v==='string'&&/^case\s*not\s*received$/i.test(v))st={...cell,fill:{patternType:"solid",fgColor:{rgb:lightGreen}},font:{name:"Arial",sz:11,bold:true,color:{rgb:green}}};put(addr,v,st);});rr++;
-    }
-    const totalRow=rr;const tv=[selectedDistrict&&selectedDistrict.toUpperCase()!=="ALL"?`${selectedDistrict} — TOTAL`:"OVERALL GRAND TOTAL","",totals.yReceived,totals.yAttend,"",totals.tReceived,totals.tAttend,totals.tNotAttend,totals.tPending,""];tv.forEach((v,i)=>put(`${String.fromCharCode(65+i)}${totalRow}`,v,grandCell));
-    ws["!cols"]=[{wch:20},{wch:28},{wch:16},{wch:12},{wch:22},{wch:16},{wch:14},{wch:14},{wch:12},{wch:22}];
-    ws["!rows"]=[{hpt:30},{hpt:22},{hpt:20},{hpt:8},{hpt:24},{hpt:28}];
-    for(let i=0;i<rows.length;i++)ws["!rows"][6+i]={hpt:34}; ws["!rows"][totalRow-1]={hpt:28};
-    ws["!autofilter"]={ref:`A6:J${totalRow-1}`};ws["!freeze"]={xSplit:2,ySplit:6};ws["!ref"]=`A1:J${totalRow}`;
-    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"MVU Daily Report");
-    const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx",cellStyles:true});
-    return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="MVU_Daily_Report_${firstDate}_${secondDate||""}.xlsx"`,"Cache-Control":"no-store"}});
+    const report=await getLatestReport(db);if(!report)return new Response("No report generated yet.",{status:404});const out=[];
+    for(const d of report.districts)d.rows.forEach((r,i)=>out.push({District:i===0?d.district:"",Block:r.block,"Vehicle No.":r.vehicle,[`${report.firstDateDisplay} Total Received`]:r.yesterday.received,[`${report.firstDateDisplay} Total Attend`]:r.yesterday.attend,[`${report.firstDateDisplay} Remark`]:r.yesterday.remark,[`${report.secondDateDisplay||"Today"} Total Received`]:r.today.received,"Total Attend":r.today.attended,"Not Attend":r.today.notAttend,Pending:r.today.pending,[`${report.secondDateDisplay||"Today"} Remark`]:r.today.remark}));
+    out.push({District:"OVERALL GRAND TOTAL",Block:"","Vehicle No.":"",[`${report.firstDateDisplay} Total Received`]:report.overall.yesterdayReceived,[`${report.firstDateDisplay} Total Attend`]:report.overall.yesterdayAttend,[`${report.firstDateDisplay} Remark`]:"",[`${report.secondDateDisplay||"Today"} Total Received`]:report.overall.todayReceived,"Total Attend":report.overall.attended,"Not Attend":report.overall.notAttend,Pending:report.overall.pending,[`${report.secondDateDisplay||"Today"} Remark`]:""});
+    const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(out);XLSX.utils.book_append_sheet(wb,ws,"MVU Daily Report");const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="MVU_Daily_Report_${report.firstDateDisplay}_${report.secondDateDisplay||""}.xlsx"`}});
   }
   if(path==="/api/mvudetail/template"&&request.method==="GET"){
     const rows=[{District:"",Block:"", "MVU Number":"", "ParavetID":"", "Paravet Name":"", "Week Off":""}];
