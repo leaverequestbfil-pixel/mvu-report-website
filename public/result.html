@@ -107,6 +107,10 @@ if(!selectedDate){
       if(showDistrict)html+=`<td class="district-cell">${index===0?esc(district.district):''}</td>`;
       html+=`<td><b>${esc(row.block||'')}</b><br><small>${esc(row.vehicle||'')}</small></td><td class="num-cell">${num(row.yesterday?.received)}</td><td class="num-cell">${num(row.yesterday?.attend)}</td><td class="date-divider">${remark(calculatedRemark(row.yesterday?.received,row.weekOff,reportData.firstDate)||row.yesterday?.remark)}</td><td class="date-divider-start num-cell">${num(row.today?.received)}</td><td class="num-cell">${num(row.today?.attended)}</td><td class="num-cell">${num(row.today?.notAttend)}</td><td class="num-cell">${num(row.today?.pending)}</td><td>${remark(calculatedRemark(row.today?.received,row.weekOff,reportData.secondDate)||row.today?.remark)}</td></tr>`;
     });
+    if(showDistrict){
+      const dt=calculateTotal(rows);
+      html+=`<tr class="total-row"><td colspan="2">${esc(district.district+' — SUBTOTAL')}</td><td class="num-cell">${dt.yesterdayReceived}</td><td class="num-cell">${dt.yesterdayAttend}</td><td class="date-divider"></td><td class="date-divider-start num-cell">${dt.todayReceived}</td><td class="num-cell">${dt.todayAttended}</td><td class="num-cell">${dt.notAttend}</td><td class="num-cell">${dt.pending}</td><td></td></tr>`;
+    }
   }
   html+=`<tr class="grand-row"><td colspan="${showDistrict?2:1}">${esc(selectedDistrict==='ALL'?'OVERALL GRAND TOTAL':selectedDistrict+' — TOTAL')}</td><td class="num-cell">${summary.yesterdayReceived}</td><td class="num-cell">${summary.yesterdayAttend}</td><td class="date-divider"></td><td class="date-divider-start num-cell">${summary.todayReceived}</td><td class="num-cell">${summary.todayAttended}</td><td class="num-cell">${summary.notAttend}</td><td class="num-cell">${summary.pending}</td><td></td></tr></tbody></table>`;
   $('report').innerHTML=`<div class="report-card">${html}</div>`;
@@ -149,6 +153,11 @@ for(const district of districts){
     if(showDistrict)html+=`<td class="district-cell">${index===0?esc(district.district):''}</td>`;
     html+=`<td><b>${esc(row.block||'')}</b><br><small>${esc(row.vehicle||'')}</small></td><td class="num-cell">${received}</td><td class="num-cell">${attend}</td><td class="num-cell">${notAttend}</td><td class="num-cell">${pending}</td><td>${remark(rm)}</td></tr>`;
   });
+  if(showDistrict){
+    let dr={received:0,attend:0,notAttend:0,pending:0};
+    for(const row of rows){const x=isFirst?row.yesterday:row.today;dr.received+=num(x?.received);dr.attend+=num(isFirst?x?.attend:x?.attended);dr.notAttend+=num(x?.notAttend);dr.pending+=num(x?.pending);}
+    html+=`<tr class="total-row"><td colspan="2">${esc(district.district+' — SUBTOTAL')}</td><td class="num-cell">${dr.received}</td><td class="num-cell">${dr.attend}</td><td class="num-cell">${dr.notAttend}</td><td class="num-cell">${dr.pending}</td><td></td></tr>`;
+  }
 }
 const totals={received:0,attend:0,notAttend:0,pending:0};
 for(const row of allRows){const x=isFirst?row.yesterday:row.today;totals.received+=num(x?.received);totals.attend+=num(isFirst?x?.attend:x?.attended);totals.notAttend+=num(x?.notAttend);totals.pending+=num(x?.pending);}
