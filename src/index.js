@@ -134,7 +134,7 @@ async function processDetailed(db,rows,originalName,masters){
   const rowsOut=roster.map(x=>{
     const y=counts(x.paravetID,firstDate),t=counts(x.paravetID,secondDate);
     return{district:x.district||"",block:x.block||"",vehicle:x.vehicle,paravetID:x.paravetID||"",weekOff:x.week_off||"",
-      yesterday:{received:y.received,attend:y.attend,remark:dailyRemark(y.received,x.week_off,firstDate)},
+      yesterday:{received:y.received,attend:y.attend,notAttend:y.notAttend,pending:y.pending,remark:dailyRemark(y.received,x.week_off,firstDate)},
       today:{received:t.received,attended:t.attend,notAttend:t.notAttend,pending:t.pending,remark:dailyRemark(t.received,x.week_off,secondDate)}};
   });
   const byDistrict=new Map();for(const r of rowsOut){if(!byDistrict.has(r.district))byDistrict.set(r.district,[]);byDistrict.get(r.district).push(r);}
