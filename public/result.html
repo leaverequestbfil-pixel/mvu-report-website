@@ -65,42 +65,72 @@ if(!reportData)return;
 const selectedDistrict=$('districtFilter').value||'ALL';
 const selectedDate=$('customDateFilter')?.value||'';
 const exportBtn=$('exportExcelBtn');
-if(exportBtn)exportBtn.href='/api/report/export?district='+encodeURIComponent(selectedDistrict)+'&date='+encodeURIComponent(selectedDate);
+if(exportBtn)exportBtn.href='/api/report/export?district='+encodeURIComponent(selectedDistrict);
 let districts=Array.isArray(reportData.districts)?reportData.districts:[];
 if(selectedDistrict!=='ALL')districts=districts.filter(d=>String(d.district||'').trim()===String(selectedDistrict).trim());
+const allRows=districts.flatMap(d=>Array.isArray(d.rows)?d.rows:[]);
+$('districtTitle').textContent=selectedDistrict==='ALL'?'ALL DISTRICTS • Madhya Pradesh':selectedDistrict+' DISTRICT • Madhya Pradesh';
+$('footerDistrict').textContent=selectedDistrict==='ALL'?'Madhya Pradesh':selectedDistrict;
+
+// Default state: no custom date selected = keep the original 2-day report exactly as before.
+if(!selectedDate){
+  const summary=calculateTotal(allRows);
+  $('sVehicles').textContent=summary.vehicles.toLocaleString();
+  $('sReceived').textContent=summary.totalReceived.toLocaleString();
+  $('sAttend').textContent=summary.totalAttend.toLocaleString();
+  $('sPending').textContent=summary.pending.toLocaleString();
+  $('sPct').textContent=summary.attendPct+'%';
+  const showDistrict=selectedDistrict==='ALL';
+  let html='<table class="report-table"><thead><tr>'+(showDistrict?'<th rowspan="2">District</th>':'')+'<th rowspan="2">Block / Vehicle</th><th colspan="3">'+esc(reportData.firstDateDisplay||'')+'</th><th colspan="5">'+esc(reportData.secondDateDisplay||'')+'</th></tr><tr><th>Total Received</th><th>Total Attend</th><th class="date-divider">Remark</th><th class="date-divider-start">Total Received</th><th>Total Attend</th><th>Not Attend</th><th>Pending</th><th>Remark</th></tr></thead><tbody>';
+  for(const district of districts){
+    const rows=Array.isArray(district.rows)?district.rows:[];
+    rows.sort((a,b)=>(num(b.yesterday?.attend)+num(b.today?.attended))-(num(a.yesterday?.attend)+num(a.today?.attended))||String(a.block||'').localeCompare(String(b.block||'')));
+    rows.forEach((row,index)=>{
+      html+='<tr>';
+      if(showDistrict)html+=`<td class="district-cell">${index===0?esc(district.district):''}</td>`;
+      html+=`<td><b>${esc(row.block||'')}</b><br><small>${esc(row.vehicle||'')}</small></td><td class="num-cell">${num(row.yesterday?.received)}</td><td class="num-cell">${num(row.yesterday?.attend)}</td><td class="date-divider">${remark(calculatedRemark(row.yesterday?.received,row.weekOff,reportData.firstDate)||row.yesterday?.remark)}</td><td class="date-divider-start num-cell">${num(row.today?.received)}</td><td class="num-cell">${num(row.today?.attended)}</td><td class="num-cell">${num(row.today?.notAttend)}</td><td class="num-cell">${num(row.today?.pending)}</td><td>${remark(calculatedRemark(row.today?.received,row.weekOff,reportData.secondDate)||row.today?.remark)}</td></tr>`;
+    });
+  }
+  html+=`<tr class="grand-row"><td colspan="${showDistrict?2:1}">${esc(selectedDistrict==='ALL'?'OVERALL GRAND TOTAL':selectedDistrict+' — TOTAL')}</td><td class="num-cell">${summary.yesterdayReceived}</td><td class="num-cell">${summary.yesterdayAttend}</td><td class="date-divider"></td><td class="date-divider-start num-cell">${summary.todayReceived}</td><td class="num-cell">${summary.todayAttended}</td><td class="num-cell">${summary.notAttend}</td><td class="num-cell">${summary.pending}</td><td></td></tr></tbody></table>`;
+  $('report').innerHTML=`<div class="report-card">${html}</div>`;
+  $('reportMeta').textContent='📅 '+(reportData.firstDateDisplay||'')+(reportData.secondDateDisplay?' → '+reportData.secondDateDisplay:'');
+  syncReportWidth();
+  return;
+}
+
+// Custom date selected: same report/table area switches to one selected day.
 const firstKey=reportData.firstDate||'';
 const secondKey=reportData.secondDate||'';
-const activeDate=selectedDate||firstKey;
-const isFirst=activeDate===firstKey;
+const isFirst=selectedDate===firstKey;
+const isSecond=selectedDate===secondKey;
+if(!isFirst&&!isSecond){
+  $('customDateFilter').value='';
+  return render();
+}
 const dateDisplay=isFirst?(reportData.firstDateDisplay||''):(reportData.secondDateDisplay||'');
-const allRows=districts.flatMap(d=>Array.isArray(d.rows)?d.rows:[]);
-const summaryRows=allRows;
-const summary={vehicles:summaryRows.length,totalReceived:0,totalAttend:0,pending:0,attendPct:0};
-for(const row of summaryRows){const x=isFirst?row.yesterday:row.today;summary.totalReceived+=num(x?.received);summary.totalAttend+=num(isFirst?x?.attend:x?.attended);summary.pending+=num(x?.pending);}
+const summary={vehicles:allRows.length,totalReceived:0,totalAttend:0,pending:0,attendPct:0};
+for(const row of allRows){const x=isFirst?row.yesterday:row.today;summary.totalReceived+=num(x?.received);summary.totalAttend+=num(isFirst?x?.attend:x?.attended);summary.pending+=num(x?.pending);}
 summary.attendPct=summary.totalReceived?Number((summary.totalAttend/summary.totalReceived*100).toFixed(2)):0;
 $('sVehicles').textContent=summary.vehicles.toLocaleString();
 $('sReceived').textContent=summary.totalReceived.toLocaleString();
 $('sAttend').textContent=summary.totalAttend.toLocaleString();
 $('sPending').textContent=summary.pending.toLocaleString();
 $('sPct').textContent=summary.attendPct+'%';
-$('districtTitle').textContent=selectedDistrict==='ALL'?'ALL DISTRICTS • Madhya Pradesh':selectedDistrict+' DISTRICT • Madhya Pradesh';
-$('footerDistrict').textContent=selectedDistrict==='ALL'?'Madhya Pradesh':selectedDistrict;
 const showDistrict=selectedDistrict==='ALL';
 let html='<table class="report-table"><thead><tr>'+(showDistrict?'<th>District</th>':'')+'<th>Block / Vehicle</th><th>Total Received</th><th>Total Attend</th>'+(isFirst?'':'<th>Not Attend</th><th>Pending</th>')+'<th>Remark</th></tr></thead><tbody>';
 for(const district of districts){
- const rows=Array.isArray(district.rows)?district.rows:[];
- rows.sort((a,b)=>{const aa=isFirst?num(a.yesterday?.attend):num(a.today?.attended);const bb=isFirst?num(b.yesterday?.attend):num(b.today?.attended);return bb-aa||String(a.block||'').localeCompare(String(b.block||''));});
- rows.forEach((row,index)=>{
-  const x=isFirst?row.yesterday:row.today;
-  const received=num(x?.received), attend=num(isFirst?x?.attend:x?.attended);
-  const notAttend=isFirst?0:num(x?.notAttend), pending=isFirst?0:num(x?.pending);
-  const rm=calculatedRemark(received,row.weekOff,activeDate)||(x?.remark||'');
-  html+='<tr>';
-  if(showDistrict)html+=`<td class="district-cell">${index===0?esc(district.district):''}</td>`;
-  html+=`<td><b>${esc(row.block||'')}</b><br><small>${esc(row.vehicle||'')}</small></td><td class="num-cell">${received}</td><td class="num-cell">${attend}</td>`;
-  if(!isFirst)html+=`<td class="num-cell">${notAttend}</td><td class="num-cell">${pending}</td>`;
-  html+=`<td>${remark(rm)}</td></tr>`;
- });
+  const rows=Array.isArray(district.rows)?district.rows:[];
+  rows.sort((a,b)=>{const aa=isFirst?num(a.yesterday?.attend):num(a.today?.attended);const bb=isFirst?num(b.yesterday?.attend):num(b.today?.attended);return bb-aa||String(a.block||'').localeCompare(String(b.block||''));});
+  rows.forEach((row,index)=>{
+    const x=isFirst?row.yesterday:row.today;
+    const received=num(x?.received),attend=num(isFirst?x?.attend:x?.attended),notAttend=isFirst?0:num(x?.notAttend),pending=isFirst?0:num(x?.pending);
+    const rm=calculatedRemark(received,row.weekOff,selectedDate)||(x?.remark||'');
+    html+='<tr>';
+    if(showDistrict)html+=`<td class="district-cell">${index===0?esc(district.district):''}</td>`;
+    html+=`<td><b>${esc(row.block||'')}</b><br><small>${esc(row.vehicle||'')}</small></td><td class="num-cell">${received}</td><td class="num-cell">${attend}</td>`;
+    if(!isFirst)html+=`<td class="num-cell">${notAttend}</td><td class="num-cell">${pending}</td>`;
+    html+=`<td>${remark(rm)}</td></tr>`;
+  });
 }
 const totals={received:0,attend:0,notAttend:0,pending:0};
 for(const row of allRows){const x=isFirst?row.yesterday:row.today;totals.received+=num(x?.received);totals.attend+=num(isFirst?x?.attend:x?.attended);if(!isFirst){totals.notAttend+=num(x?.notAttend);totals.pending+=num(x?.pending);}}
