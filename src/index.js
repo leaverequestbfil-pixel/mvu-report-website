@@ -178,7 +178,22 @@ async function api(request,env){
     try{const masters=await loadMasters(db);if(!Object.keys(masters.mvuDetail).length)throw new Error("Please upload MVU Detail master first.");const body=await bodyJson(request);const report=await processDetailed(db,body.rows,clean(body.filename)||"DetailedReport.xlsx",masters);return json({ok:true,report});}
     catch(e){await logUpload(db,"detailed","",0,"error",e.message);return json({ok:false,error:e.message},400);}
   }
-  if(path==="/api/report"&&request.method==="GET"){const report=await getLatestReport(db);if(!report)return json({ok:false,error:"No report generated yet."},404);return json({ok:true,report});}
+  if(path==="/api/report"&&request.method==="GET"){
+    const report=await getLatestReport(db);if(!report)return json({ok:false,error:"No report generated yet."},404);
+    const masters=await loadMasters(db);
+    const byParavet=new Map(Object.values(masters.mvuDetail).map(x=>[norm(x.paravet_id),x]));
+    const byMvu=new Map(Object.values(masters.mvuDetail).map(x=>[norm(x.mvu_number),x]));
+    const enrich=(row)=>{
+      const master=byParavet.get(norm(row.paravetID))||byMvu.get(norm(row.vehicle));
+      if(master){row.weekOff=master.week_off||row.weekOff||"";row.district=master.district||row.district||"";row.block=master.block||row.block||"";row.vehicle=master.mvu_number||row.vehicle||"";}
+      row.yesterday=row.yesterday||{};row.today=row.today||{};
+      row.yesterday.remark=dailyRemark(row.yesterday.received,row.weekOff,report.firstDate);
+      row.today.remark=dailyRemark(row.today.received,row.weekOff,report.secondDate);
+      return row;
+    };
+    for(const d of (report.districts||[])) for(const row of (d.rows||[])) enrich(row);
+    return json({ok:true,report});
+  }
   if(path==="/api/report/export"&&request.method==="GET"){
     const report=await getLatestReport(db);if(!report)return new Response("No report generated yet.",{status:404});
     const selectedDistrict=clean(url.searchParams.get("district"));
@@ -221,7 +236,7 @@ async function api(request,env){
     ws["!cols"]=[{wch:20},{wch:28},{wch:16},{wch:12},{wch:22},{wch:16},{wch:14},{wch:14},{wch:12},{wch:22}];
     ws["!rows"]=[{hpt:30},{hpt:22},{hpt:20},{hpt:8},{hpt:24},{hpt:28}];
     for(let i=0;i<rows.length;i++)ws["!rows"][6+i]={hpt:34}; ws["!rows"][totalRow-1]={hpt:28};
-    ws["!autofilter"]={ref:`A6:J${totalRow-1}`};ws["!freeze"]={xSplit:2,ySplit:6};ws["!ref]=`A1:J${totalRow}`;
+    ws["!autofilter"]={ref:`A6:J${totalRow-1}`};ws["!freeze"]={xSplit:2,ySplit:6};ws["!ref"]=`A1:J${totalRow}`;
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"MVU Daily Report");
     const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx",cellStyles:true});
     return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="MVU_Daily_Report_${firstDate}_${secondDate||""}.xlsx"`,`Cache-Control":"no-store"}});
