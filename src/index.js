@@ -114,20 +114,22 @@ async function processDetailed(db,rows,originalName,masters){
     return{received:c.Attend+c["Not Attend"]+c.Pending,attend:c.Attend,notAttend:c["Not Attend"],pending:c.Pending};
   }
   function dailyRemark(received,weekOff,date){
-    // Remark is decided only for an actual report date.
+    // Week Off has the highest priority.
+    // It must show even when Total Received is greater than 0.
     if(!date) return "";
-    // If cases were received, no missing/weekly-off remark is required.
-    if(Number(received)!==0) return "";
 
-    // Match full weekday names and common 3-letter abbreviations.
     const day=norm(weekdayName(date));
     const off=norm(weekOff).replace(/[^A-Z]/g,"");
     const dayShort=day.slice(0,3);
     const isWeekOff=off===day || off===dayShort ||
       (off.length>=3 && day.startsWith(off));
 
-    // 0 received + weekly off = Week off; otherwise = Case not received.
-    return isWeekOff ? "Week off" : "Case not received";
+    if(isWeekOff) return "Week off";
+
+    // If it is not a Week Off and no cases were received.
+    if(Number(received)===0) return "Case not received";
+
+    return "";
   }
   const rowsOut=roster.map(x=>{
     const y=counts(x.paravetID,firstDate),t=counts(x.paravetID,secondDate);
