@@ -113,11 +113,16 @@ async function processDetailed(db,rows,originalName,masters){
     const c=d?(agg.get(`${norm(paravet)}|${d}`)||{Attend:0,"Not Attend":0,Pending:0}):{Attend:0,"Not Attend":0,Pending:0};
     return{received:c.Attend+c["Not Attend"]+c.Pending,attend:c.Attend,notAttend:c["Not Attend"],pending:c.Pending};
   }
+  function dailyRemark(received,weekOff,date){
+    if(received!==0) return "";
+    if(weekOff && date && norm(weekOff)===norm(weekdayName(date))) return "Week off";
+    return "Case not received";
+  }
   const rowsOut=roster.map(x=>{
     const y=counts(x.paravetID,firstDate),t=counts(x.paravetID,secondDate);
     return{district:x.district||"",block:x.block||"",vehicle:x.vehicle,paravetID:x.paravetID||"",weekOff:x.week_off||"",
-      yesterday:{received:y.received,attend:y.attend,remark:x.week_off&&norm(x.week_off)===norm(weekdayName(firstDate))?"Week off":""},
-      today:{received:t.received,attended:t.attend,notAttend:t.notAttend,pending:t.pending,remark:secondDate&&x.week_off&&norm(x.week_off)===norm(weekdayName(secondDate))?"Week off":""}};
+      yesterday:{received:y.received,attend:y.attend,remark:dailyRemark(y.received,x.week_off,firstDate)},
+      today:{received:t.received,attended:t.attend,notAttend:t.notAttend,pending:t.pending,remark:dailyRemark(t.received,x.week_off,secondDate)}};
   });
   const byDistrict=new Map();for(const r of rowsOut){if(!byDistrict.has(r.district))byDistrict.set(r.district,[]);byDistrict.get(r.district).push(r);}
   function total(rs){const o={vehicles:rs.length,yesterdayReceived:0,yesterdayAttend:0,todayReceived:0,attended:0,notAttend:0,pending:0};for(const r of rs){o.yesterdayReceived+=+r.yesterday.received||0;o.yesterdayAttend+=+r.yesterday.attend||0;o.todayReceived+=+r.today.received||0;o.attended+=+r.today.attended||0;o.notAttend+=+r.today.notAttend||0;o.pending+=+r.today.pending||0;}o.attendPct=o.todayReceived?+(o.attended/o.todayReceived*100).toFixed(2):0;o.casesReceived=o.yesterdayReceived+o.todayReceived;o.attendedCases=o.yesterdayAttend+o.attended;o.todayPending=o.pending;return o;}
