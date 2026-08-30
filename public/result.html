@@ -20,6 +20,7 @@ body{overflow-x:auto;background-image:radial-gradient(circle at 12% 12%,var(--te
 .summary{width:100%;display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));background:#fff;border-bottom:1px solid var(--line)}.summary>div{text-align:center;padding:12px 10px;border-right:1px solid var(--line);position:relative}.summary>div:last-child{border-right:0}.summary span{display:block;font-size:10px;color:#718080;margin-bottom:3px;font-weight:700;text-transform:uppercase;letter-spacing:.35px}.summary strong{display:block;font-size:19px;color:#087f4d;font-weight:900;text-shadow:0 1px 0 #fff}.summary>div:nth-child(4) strong{color:#df3838}
 #report{width:100%;background:linear-gradient(180deg,#f7faf9,#fff);overflow:visible;text-align:center;padding:12px 12px 14px}.report-card{width:max-content;margin:0 auto;background:#fff;border-radius:8px;box-shadow:none;overflow:hidden;border:1px solid #d9e7e1}
 .report-table{width:max-content;min-width:0;max-width:none;margin:0;border-collapse:separate;border-spacing:0;table-layout:auto;font-size:12.5px;background:#fff}.report-table th{background:#168052;color:#fff;border:0;border-right:1px solid rgba(255,255,255,.17);padding:9px 10px;text-align:center;font-weight:900}.report-table thead tr:first-child th{background:#0f7048;font-size:11.5px;letter-spacing:.2px}.report-table td{background:#fff;border:0;border-right:1px solid #dfe8e4;border-bottom:1px solid #e4ece9;padding:8px 10px;height:42px;text-align:center;vertical-align:middle}.report-table tbody tr:nth-child(even) td{background:#f9fbfa}.report-table tbody tr:hover td{background:#f4faf7}.report-table .block-cell{font-weight:800}.report-table .block-cell small{color:#7b8888;font-weight:600;font-size:12px}.report-table .district-cell{font-weight:900}.report-table .date-divider{border-right:4px solid #9aa5a1!important}.report-table .date1-end{border-right:4px solid #9aa5a1!important}.report-table .total-row td{font-weight:900;background:#eaf6f0!important;color:#087348;border-top:2px solid #c9e1d6}.report-table .grand-row td{font-weight:900;background:#0f7048!important;color:#fff;border-top:2px solid #075e3d}.num-cell{font-weight:600}.remark{display:inline-block;padding:4px 8px;border-radius:7px;background:#eaf7ef;color:#087348;font-weight:700;border:1px solid #c8e6d5;box-shadow:none}.remark.weekoff{background:#eaf7ef;color:#087348;border-color:#c8e6d5}.remark.case-not-received{background:#fff3cd;color:#8a6200;border-color:#f3d27a}.empty{padding:45px 25px;text-align:center;color:var(--muted);font-weight:700}.report-actions{display:flex;justify-content:center;align-items:center;padding:10px 0 0}.report-actions button{border:0;border-radius:9px;padding:9px 17px;font-size:12px;font-weight:800;cursor:pointer;background:linear-gradient(180deg,#159761,#08764b);color:#fff;box-shadow:0 4px 0 #075e3d,0 8px 14px rgba(8,115,72,.18)}.report-actions button:active{transform:translateY(3px);box-shadow:0 1px 0 #075e3d}.copy-note{text-align:center;font-size:10px;color:#7b858b;margin-top:7px}.result-footer{width:100%;text-align:center;font-size:10px;color:#89939a;padding:9px 0}.no-capture{}
+.custom-modal{display:none;position:fixed;inset:0;z-index:1000;background:rgba(19,44,36,.42);backdrop-filter:blur(3px);padding:24px;overflow:auto}.custom-modal.open{display:flex;align-items:flex-start;justify-content:center}.custom-modal-card{width:min(1200px,calc(100vw - 48px));margin:20px auto;background:#fff;border:1px solid #d4e2dc;border-radius:14px;box-shadow:0 18px 55px rgba(20,62,48,.24);overflow:hidden}.custom-modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:linear-gradient(145deg,#0f9a61,#087348);color:#fff}.custom-modal-head h2{margin:0;font-size:18px}.custom-modal-head p{margin:4px 0 0;font-size:11px;opacity:.88}.custom-close{width:34px;height:34px;border:1px solid rgba(255,255,255,.35);border-radius:9px;background:rgba(255,255,255,.12);color:#fff;font-size:24px;line-height:1;cursor:pointer}.custom-report-toolbar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #dce7e3;background:#f7faf9}.custom-report-toolbar label{font-size:12px;font-weight:900;color:#176d4b}.custom-report-toolbar select{height:34px;min-width:170px;border:1px solid #cfdcd7;border-radius:8px;background:#fff;padding:0 9px;font-weight:800;color:#26343e}.custom-count{margin-left:auto;font-size:11px;color:#718080;font-weight:800}.custom-report-content{padding:14px;overflow:auto}.custom-report-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:auto;font-size:13.5px}.custom-report-table th{background:#168052;color:#fff;padding:10px 12px;border-right:1px solid rgba(255,255,255,.17);font-weight:900;text-align:center;white-space:nowrap}.custom-report-table td{padding:10px 12px;border-right:1px solid #dfe8e4;border-bottom:1px solid #e4ece9;text-align:center;background:#fff}.custom-report-table tbody tr:nth-child(even) td{background:#f9fbfa}.custom-report-table .district-cell{font-weight:900}.custom-report-table .block-cell{font-weight:800;text-align:left}.custom-report-table .block-cell small{display:block;color:#7b8888;font-weight:600;font-size:12px;margin-top:2px}.custom-report-table .num-cell{font-weight:600}.custom-report-table .grand-row td{font-weight:900;background:#0f7048!important;color:#fff;border-top:2px solid #075e3d}.custom-report-empty{padding:36px;text-align:center;color:#718080;font-weight:800}.custom-report-table .remark{white-space:nowrap}
 @media(max-width:900px){.shell{min-width:0;width:calc(100% - 10px);margin:7px auto 18px}.result-wrap{min-width:760px}.result-head{min-height:122px;padding:8px}.result-actions{left:calc(100% + 12px);top:112px;gap:6px;width:170px}.result-actions select,.result-actions button,.result-actions a{height:32px;font-size:9px;padding:0 7px}.brand{padding-top:0}.brand h1{font-size:16px}.summary{grid-template-columns:repeat(5,minmax(120px,1fr));min-width:760px}#report{overflow-x:auto}.report-table{margin:0 auto}}
 </style>
 </head>
@@ -33,6 +34,7 @@ body{overflow-x:auto;background-image:radial-gradient(circle at 12% 12%,var(--te
   <div class="actions-title">Report Controls</div>
   <select id="districtFilter"><option value="ALL">All District</option></select>
   <button type="button" id="refreshBtn">↻ Refresh</button>
+  <button type="button" id="customReportBtn">📅 Custom Report</button>
   <a id="exportExcelBtn" href="/api/report/export?district=ALL">📊 Export Excel</a>
   <a href="/upload.html">← Upload Page</a>
 </div>
@@ -44,6 +46,20 @@ body{overflow-x:auto;background-image:radial-gradient(circle at 12% 12%,var(--te
 <div><span>Overall Attend %</span><strong id="sPct">0%</strong></div>
 </section>
 <section id="report"></section>
+</div>
+<div id="customReportModal" class="custom-modal no-capture" aria-hidden="true">
+  <div class="custom-modal-card">
+    <div class="custom-modal-head">
+      <div><h2>📅 Custom Report</h2><p id="customReportMeta">Select one uploaded date</p></div>
+      <button type="button" id="closeCustomReportBtn" class="custom-close">×</button>
+    </div>
+    <div class="custom-report-toolbar">
+      <label for="customDateFilter">Report Date</label>
+      <select id="customDateFilter"></select>
+      <span id="customReportCount" class="custom-count"></span>
+    </div>
+    <div id="customReportContent" class="custom-report-content"></div>
+  </div>
 </div>
 <div class="report-actions no-capture"><button id="copyPngBtn" type="button">📋 Copy PNG</button></div>
 <div class="copy-note no-capture">Copy PNG करके WhatsApp Web में सीधे Ctrl+V से भेज सकते हैं।</div>
@@ -64,6 +80,63 @@ for(const district of districts){const rows=Array.isArray(district.rows)?distric
 html+=`<tr class="grand-row"><td colspan="${showDistrict?2:1}">${esc(selected==='ALL'?'OVERALL GRAND TOTAL':selected+' — TOTAL')}</td><td class="num-cell">${summary.yesterdayReceived}</td><td class="num-cell">${summary.yesterdayAttend}</td><td class="date-divider"></td><td class="date-divider-start num-cell">${summary.todayReceived}</td><td class="num-cell">${summary.todayAttended}</td><td class="num-cell">${summary.notAttend}</td><td class="num-cell">${summary.pending}</td><td></td></tr></tbody></table>`;$('report').innerHTML=`<div class="report-card">${html}</div>`;syncReportWidth();}
 function syncReportWidth(){const area=$('captureArea'),table=document.querySelector('.report-table');if(!area||!table)return;const w=Math.max(table.getBoundingClientRect().width+24,760);area.style.width=w+'px';document.querySelector('.result-head').style.width=w+'px';document.querySelector('.summary').style.width=w+'px';document.querySelector('#report').style.width=w+'px';}
 window.addEventListener('resize',()=>{if(reportData)syncReportWidth();});
+function getUploadedDates(){
+  if(!reportData)return [];
+  return [reportData.firstDate,reportData.secondDate].filter(Boolean);
+}
+function openCustomReport(){
+  if(!reportData)return;
+  const dates=getUploadedDates();
+  const select=$('customDateFilter');
+  select.innerHTML=dates.map(d=>`<option value="${esc(d)}">${esc(displayDateForCustom(d))}</option>`).join('');
+  $('customReportModal').classList.add('open');
+  $('customReportModal').setAttribute('aria-hidden','false');
+  renderCustomReport();
+}
+function closeCustomReport(){
+  $('customReportModal').classList.remove('open');
+  $('customReportModal').setAttribute('aria-hidden','true');
+}
+function displayDateForCustom(key){
+  if(!key)return '';
+  const parts=String(key).split('-');
+  return parts.length===3?`${parts[2]}-${parts[1]}-${parts[0]}`:key;
+}
+function customRowsForDate(dateKey){
+  const rows=[];
+  for(const district of (reportData?.districts||[])){
+    for(const row of (district.rows||[])){
+      const source=dateKey===reportData.firstDate?row.yesterday:row.today;
+      rows.push({district:district.district||'',block:row.block||'',vehicle:row.vehicle||'',received:num(source?.received),attend:num(source?.attend ?? source?.attended),notAttend:num(source?.notAttend),pending:num(source?.pending),remark:calculatedRemark(source?.received,row.weekOff,dateKey)||source?.remark||''});
+    }
+  }
+  return rows;
+}
+function renderCustomReport(){
+  if(!reportData)return;
+  const dateKey=$('customDateFilter').value;
+  const rows=customRowsForDate(dateKey);
+  const selectedDistrict=$('districtFilter').value;
+  const filtered=selectedDistrict&&selectedDistrict!=='ALL'?rows.filter(r=>String(r.district).trim()===String(selectedDistrict).trim()):rows;
+  filtered.sort((a,b)=>a.district.localeCompare(b.district)||b.attend-a.attend||a.block.localeCompare(b.block));
+  $('customReportMeta').textContent=`${displayDateForCustom(dateKey)} • Date-wise report${selectedDistrict&&selectedDistrict!=='ALL'?` • ${selectedDistrict}`:''}`;
+  $('customReportCount').textContent=`${filtered.length} MVU`;
+  if(!filtered.length){$('customReportContent').innerHTML='<div class="custom-report-empty">No data available for the selected date.</div>';return;}
+  const showDistrict=!(selectedDistrict&&selectedDistrict!=='ALL');
+  const totals=filtered.reduce((a,r)=>{a.received+=r.received;a.attend+=r.attend;a.notAttend+=r.notAttend;a.pending+=r.pending;return a;},{received:0,attend:0,notAttend:0,pending:0});
+  let html='<table class="custom-report-table"><thead><tr>'+(showDistrict?'<th>District</th>':'')+'<th>Block / Vehicle</th><th>Total Received</th><th>Total Attend</th><th>Not Attend</th><th>Pending</th><th>Remark</th></tr></thead><tbody>';
+  filtered.forEach((r,i)=>{html+='<tr>'+(showDistrict?`<td class="district-cell">${esc(r.district)}</td>`:'')+`<td class="block-cell"><b>${esc(r.block)}</b><small>${esc(r.vehicle)}</small></td><td class="num-cell">${r.received}</td><td class="num-cell">${r.attend}</td><td class="num-cell">${r.notAttend}</td><td class="num-cell">${r.pending}</td><td>${remark(r.remark)}</td></tr>`;});
+  html+=`<tr class="grand-row"><td colspan="${showDistrict?2:1}">${esc(showDistrict?'OVERALL GRAND TOTAL':selectedDistrict+' — TOTAL')}</td><td>${totals.received}</td><td>${totals.attend}</td><td>${totals.notAttend}</td><td>${totals.pending}</td><td></td></tr></tbody></table>`;
+  $('customReportContent').innerHTML=html;
+}
 async function copyReportPNG(){const button=$('copyPngBtn');const area=$('captureArea');if(!area)return;if(typeof html2canvas==='undefined'){alert('PNG library load नहीं हुई.');return;}const old=button.textContent;button.disabled=true;button.textContent='⏳ Scanning...';try{if(document.fonts?.ready)await document.fonts.ready;await new Promise(r=>setTimeout(r,200));const canvas=await html2canvas(area,{backgroundColor:'#fff',scale:5,useCORS:true,allowTaint:false,logging:false,onclone:doc=>{doc.querySelectorAll('.no-capture').forEach(el=>{el.style.visibility='hidden';el.style.display='none';});const cloned=doc.getElementById('captureArea');if(cloned){cloned.style.width=area.scrollWidth+'px';cloned.style.maxWidth='none';}const table=cloned?.querySelector('.report-table');if(table){table.style.width='max-content';table.style.maxWidth='none';table.style.tableLayout='auto';}const rc=cloned?.querySelector('.report-card');if(rc){rc.style.width='max-content';rc.style.maxWidth='none';}}});const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG creation failed')),'image/png'));if(navigator.clipboard&&typeof ClipboardItem!=='undefined'){await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);button.textContent='✅ PNG Copied';setTimeout(()=>button.textContent=old,1800);}else{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='MVU-Report.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);button.textContent='⬇ PNG Saved';setTimeout(()=>button.textContent=old,1800);}}catch(e){console.error('Copy PNG Error:',e);alert('PNG copy नहीं हो पाया। Browser clipboard permission allow करें और फिर दोबारा कोशिश करें।');button.textContent=old;}finally{button.disabled=false;}}
-$('districtFilter').addEventListener('change',render);$('refreshBtn').addEventListener('click',load);$('copyPngBtn').addEventListener('click',copyReportPNG);load();
+$('districtFilter').addEventListener('change',()=>{render();if($('customReportModal').classList.contains('open'))renderCustomReport();});
+$('refreshBtn').addEventListener('click',load);
+$('customReportBtn').addEventListener('click',openCustomReport);
+$('closeCustomReportBtn').addEventListener('click',closeCustomReport);
+$('customDateFilter').addEventListener('change',renderCustomReport);
+$('customReportModal').addEventListener('click',e=>{if(e.target===$('customReportModal'))closeCustomReport();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('customReportModal').classList.contains('open'))closeCustomReport();});
+$('copyPngBtn').addEventListener('click',copyReportPNG);
+load();
 </script></body></html>
