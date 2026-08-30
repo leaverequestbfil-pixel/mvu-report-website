@@ -117,25 +117,26 @@ $('sAttend').textContent=summary.totalAttend.toLocaleString();
 $('sPending').textContent=summary.pending.toLocaleString();
 $('sPct').textContent=summary.attendPct+'%';
 const showDistrict=selectedDistrict==='ALL';
-let html='<table class="report-table"><thead><tr>'+(showDistrict?'<th>District</th>':'')+'<th>Block / Vehicle</th><th>Total Received</th><th>Total Attend</th>'+(isFirst?'':'<th>Not Attend</th><th>Pending</th>')+'<th>Remark</th></tr></thead><tbody>';
+let html='<table class="report-table"><thead><tr>'+(showDistrict?'<th>District</th>':'')+'<th>Block / Vehicle</th><th>Total Received</th><th>Total Attend</th><th>Not Attend</th><th>Pending</th><th>Remark</th></tr></thead><tbody>';
 for(const district of districts){
   const rows=Array.isArray(district.rows)?district.rows:[];
   rows.sort((a,b)=>{const aa=isFirst?num(a.yesterday?.attend):num(a.today?.attended);const bb=isFirst?num(b.yesterday?.attend):num(b.today?.attended);return bb-aa||String(a.block||'').localeCompare(String(b.block||''));});
   rows.forEach((row,index)=>{
     const x=isFirst?row.yesterday:row.today;
-    const received=num(x?.received),attend=num(isFirst?x?.attend:x?.attended),notAttend=isFirst?0:num(x?.notAttend),pending=isFirst?0:num(x?.pending);
+    const received=num(x?.received);
+    const attend=num(isFirst?x?.attend:x?.attended);
+    const notAttend=num(x?.notAttend);
+    const pending=num(x?.pending);
     const rm=calculatedRemark(received,row.weekOff,selectedDate)||(x?.remark||'');
     html+='<tr>';
     if(showDistrict)html+=`<td class="district-cell">${index===0?esc(district.district):''}</td>`;
-    html+=`<td><b>${esc(row.block||'')}</b><br><small>${esc(row.vehicle||'')}</small></td><td class="num-cell">${received}</td><td class="num-cell">${attend}</td>`;
-    if(!isFirst)html+=`<td class="num-cell">${notAttend}</td><td class="num-cell">${pending}</td>`;
-    html+=`<td>${remark(rm)}</td></tr>`;
+    html+=`<td><b>${esc(row.block||'')}</b><br><small>${esc(row.vehicle||'')}</small></td><td class="num-cell">${received}</td><td class="num-cell">${attend}</td><td class="num-cell">${notAttend}</td><td class="num-cell">${pending}</td><td>${remark(rm)}</td></tr>`;
   });
 }
 const totals={received:0,attend:0,notAttend:0,pending:0};
-for(const row of allRows){const x=isFirst?row.yesterday:row.today;totals.received+=num(x?.received);totals.attend+=num(isFirst?x?.attend:x?.attended);if(!isFirst){totals.notAttend+=num(x?.notAttend);totals.pending+=num(x?.pending);}}
+for(const row of allRows){const x=isFirst?row.yesterday:row.today;totals.received+=num(x?.received);totals.attend+=num(isFirst?x?.attend:x?.attended);totals.notAttend+=num(x?.notAttend);totals.pending+=num(x?.pending);}
 const span=(showDistrict?1:0)+1;
-html+=`<tr class="grand-row"><td colspan="${span}">${esc(selectedDistrict==='ALL'?'OVERALL GRAND TOTAL':selectedDistrict+' — TOTAL')}</td><td class="num-cell">${totals.received}</td><td class="num-cell">${totals.attend}</td>${isFirst?'':`<td class="num-cell">${totals.notAttend}</td><td class="num-cell">${totals.pending}</td>`}<td></td></tr></tbody></table>`;
+html+=`<tr class="grand-row"><td colspan="${span}">${esc(selectedDistrict==='ALL'?'OVERALL GRAND TOTAL':selectedDistrict+' — TOTAL')}</td><td class="num-cell">${totals.received}</td><td class="num-cell">${totals.attend}</td><td class="num-cell">${totals.notAttend}</td><td class="num-cell">${totals.pending}</td><td></td></tr></tbody></table>`;
 $('report').innerHTML=`<div class="report-card"><div style="padding:8px 12px;font-weight:900;color:#0f7048;text-align:left">📅 ${esc(dateDisplay)}</div>${html}</div>`;
 $('reportMeta').textContent='📅 '+dateDisplay;
 syncReportWidth();
