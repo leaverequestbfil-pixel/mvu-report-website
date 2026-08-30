@@ -165,10 +165,10 @@ async function api(request,env){
   if(path==="/api/status"&&request.method==="GET"){
     const masters=await loadMasters(db),latest=await getLatestReport(db);
     const rows=Object.values(masters.mvuDetail),mvuDetailCount=rows.length;
-    const d=new Set(rows.map(x=>clean(x.district)).filter(Boolean)),b=new Set(rows.map(x=>clean(x.block)).filter(Boolean));
+    const d=new Set(rows.map(x=>clean(x.district)).filter(Boolean)),totalBlockCount=rows.filter(x=>{const block=clean(x.block).toLowerCase();return block && block!=="dist. head quarter" && block!=="dist head quarter";}).length;
     const available=(await getState(db,"mvu_detail_upload_available"))==="1";
     const logs=await db.prepare(`SELECT kind,filename,row_count,status,message,uploaded_at FROM upload_log ORDER BY id DESC LIMIT 8`).all();
-    return json({ok:true,mvuDetailCount,uniqueDistrictCount:d.size,uniqueBlockCount:b.size,masterUploadAvailable:available||mvuDetailCount===0,latest,logs:logs.results||[]});
+    return json({ok:true,mvuDetailCount,uniqueDistrictCount:d.size,totalBlockCount,masterUploadAvailable:available||mvuDetailCount===0,latest,logs:logs.results||[]});
   }
   if(path==="/api/upload/mvudetail"&&request.method==="POST"){
     try{const body=await bodyJson(request);const mode=clean(body.mode)||"chunk";const count=await saveMVUDetailChunk(db,Array.isArray(body.rows)?body.rows:[],clean(body.filename)||"MVU_Detail.xlsx",mode);return json({ok:true,count,message:mode==="finish"||mode==="replace_finish"?"MVU Detail uploaded successfully. Old data was replaced automatically.":`MVU Detail batch saved: ${count} rows.`});}
