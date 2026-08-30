@@ -817,6 +817,9 @@ input[type="file"]:disabled{
   font-size:11px;
 }
 
+
+.master-panel{margin-top:12px}.master-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.master-actions input[type=file]{min-height:34px;padding:7px;border:1px solid #dfe5e8;border-radius:6px;background:#fff;font-size:10px}.big-btn.danger{background:#b42318!important;border-color:#b42318!important}.master-filter-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:14px 0 9px}.master-filter-row label{display:flex;flex-direction:column;gap:4px;font-size:9px;font-weight:700;color:#59636a}.master-filter-row select,.master-filter-row input{height:34px;min-width:190px;border:1px solid #cfd7dc;border-radius:6px;padding:0 9px;font-size:10px;background:#fff}.row-count{font-size:9px;color:#707980;font-weight:700;margin-left:auto;padding-bottom:9px}.table-wrap{width:100%;overflow:auto;border:1px solid #e0e5e8;border-radius:7px}.mvu-table{width:100%;border-collapse:collapse;min-width:880px;font-size:9px}.mvu-table th{background:#117a4b;color:#fff;text-align:left;padding:8px 7px;position:sticky;top:0}.mvu-table td{padding:7px;border-bottom:1px solid #edf0f2;white-space:nowrap}.mvu-table tr:nth-child(even){background:#fafcfc}.table-btn{border:0;border-radius:5px;padding:5px 8px;font-size:9px;font-weight:700;cursor:pointer;margin-right:3px}.table-btn.edit{background:#e8f1ff;color:#175ea8}.table-btn.del{background:#fdeaea;color:#b42318}.empty-cell{text-align:center;color:#89939a;padding:20px!important}.progress-wrap{margin-top:9px}.progress-label{display:flex;justify-content:space-between;font-size:9px;font-weight:700}.progress-track{height:8px;background:#e8ecef;border-radius:10px;overflow:hidden;margin-top:5px}.progress-bar{height:100%;width:0;background:#198754;transition:width .15s}.mvu-modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:1000;padding:15px}.mvu-modal-card{width:min(620px,96vw);background:#fff;border-radius:10px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.2)}.mvu-modal-card h3{margin:0 0 14px;font-size:15px}.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.edit-grid label{font-size:9px;font-weight:700;color:#59636a;display:flex;flex-direction:column;gap:4px}.edit-grid input{height:34px;border:1px solid #cfd7dc;border-radius:6px;padding:0 9px;font-size:10px}.modal-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:15px}
+#masterArea{display:none}#masterArea.show{display:block}
 </style>
 
 </head>
@@ -869,8 +872,8 @@ input[type="file"]:disabled{
     <button
       type="button"
       class="nav-danger"
-      id="hardResetBtn">
-      Hard Reset
+      id="changeMasterBtn">
+      Change Master Data
     </button>
 
   </nav>
@@ -892,20 +895,32 @@ input[type="file"]:disabled{
 
 <section class="cards three">
 
-  <div class="status-card">
-    <span>Unique District</span>
-    <strong id="districtCount">0</strong>
-  </div>
 
   <div class="status-card">
-    <span>Unique Block</span>
-    <strong id="blockCount">0</strong>
+
+    <span>
+      Unique District
+    </span>
+
+    <strong id="districtCount">
+      0
+    </strong>
+
   </div>
 
+
   <div class="status-card">
-    <span>MVU Details</span>
-    <strong id="mvuDetailCount">0</strong>
+
+    <span>
+      Unique Block
+    </span>
+
+    <strong id="blockCount">
+      0
+    </strong>
+
   </div>
+
 
 </section>
 
@@ -989,56 +1004,63 @@ input[type="file"]:disabled{
      RESET INFO
 ======================================================= -->
 
-<div id="resetInfo" class="reset-info">
-  🔓 MVU Details update is available. Uploading a new file will automatically replace the old MVU Details.
-</div>
-
 <!-- =======================================================
-     MVU DETAILS
-     AVAILABLE AFTER HARD RESET
+     MASTER AREA
 ======================================================= -->
-
 <section id="masterArea">
-
-  <div class="panel" id="mvuDetailPanel">
-
+  <div class="panel master-panel">
     <div class="panel-title">
       <span class="step">2</span>
-      <div>
-        <h2>MVU Detail</h2>
-        <p>District, Block, MVU Number and Week Off</p>
-      </div>
+      <div><h2>MVU Details</h2><p>Server Master Data • Edit directly here</p></div>
     </div>
 
-    <div class="button-row" style="margin-bottom:10px;">
-      <a class="button secondary big-btn" href="/api/mvudetail/template">
-        Download Sample
-      </a>
+    <div class="master-actions">
+      <a class="big-btn secondary" href="/api/mvudetail/template">📥 Download Sample</a>
+      <a class="big-btn secondary" href="/api/mvudetail/download">⬇️ Download Current Data</a>
+      <input id="mvuDetailFile" type="file" accept=".xlsx,.xls">
+      <button type="button" class="big-btn" id="mvuDetailBtn">📤 Bulk Upload</button>
+      <button type="button" class="big-btn danger" id="deleteAllMVUBtn">🗑️ All Delete</button>
     </div>
 
-    <input id="mvuDetailFile" type="file" accept=".xlsx,.xls">
-
-    <button type="button" class="big-btn" id="mvuDetailBtn">
-      Upload Updated Details
-    </button>
-
-    <div class="progress-wrap" id="uploadProgress" style="display:none;margin-top:12px;">
-      <div style="display:flex;justify-content:space-between;gap:10px;font-size:9px;font-weight:700;margin-bottom:5px;">
-        <span id="progressText">Uploading…</span>
-        <span id="progressPercent">0%</span>
-      </div>
-      <div style="height:10px;background:#e9eef0;border-radius:6px;overflow:hidden;">
-        <div id="progressBar" style="height:100%;width:0%;background:#198754;transition:width .15s;"></div>
-      </div>
+    <div id="mvuProgressWrap" class="progress-wrap" style="display:none;">
+      <div class="progress-label"><span id="mvuProgressText">Uploading...</span><span id="mvuProgressPct">0%</span></div>
+      <div class="progress-track"><div id="mvuProgressBar" class="progress-bar"></div></div>
     </div>
 
-    <div class="hint">
-      Required columns: District, Block, MVU Number, Week Off.
+    <div class="master-filter-row">
+      <label>District
+        <select id="districtFilter"><option value="">All Districts</option></select>
+      </label>
+      <label>Search
+        <input id="mvuSearch" type="search" placeholder="MVU / ParavetID / Name / Block">
+      </label>
+      <button type="button" class="big-btn" id="refreshMVUBtn">🔄 Refresh</button>
+      <span id="mvuRowCount" class="row-count">0 rows</span>
     </div>
 
+    <div class="table-wrap">
+      <table class="mvu-table">
+        <thead><tr><th>District</th><th>Block</th><th>MVU Number</th><th>Paravet Name</th><th>ParavetID</th><th>Week Off</th><th>Action</th></tr></thead>
+        <tbody id="mvuTableBody"><tr><td colspan="7" class="empty-cell">Loading server data…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="hint">Bulk Upload replaces the complete old master. Individual rows can be edited or deleted directly on the server.</div>
   </div>
-
 </section>
+
+<div id="mvuEditModal" class="mvu-modal" style="display:none;">
+  <div class="mvu-modal-card">
+    <h3>Edit MVU Detail</h3>
+    <input type="hidden" id="editOldMvu">
+    <div class="edit-grid">
+      <label>District<input id="editDistrict"></label><label>Block<input id="editBlock"></label>
+      <label>MVU Number<input id="editMvu"></label><label>Paravet Name<input id="editParavetName"></label>
+      <label>ParavetID<input id="editParavetID"></label><label>Week Off<input id="editWeekOff"></label>
+    </div>
+    <div class="modal-actions"><button id="saveMvuEdit" class="big-btn">Save Changes</button><button id="cancelMvuEdit" class="big-btn secondary">Cancel</button></div>
+  </div>
+</div>
+
 
 
 <!-- =======================================================
@@ -1081,179 +1103,21 @@ input[type="file"]:disabled{
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);
-let state=null;
-function show(msg,type='info'){const n=$('notice');if(!n)return;n.textContent=msg;n.className='notice '+type;}
-function set(id,value){const el=$(id);if(el)el.textContent=value;}
-function setProgress(done,total,label='Uploading'){
-  const wrap=$('uploadProgress'),bar=$('progressBar'),text=$('progressText'),pct=$('progressPercent');
-  if(!wrap)return;
-  wrap.style.display='block';
-  const p=total?Math.min(100,Math.round(done/total*100)):0;
-  bar.style.width=p+'%';
-  text.textContent=`${label} ${done.toLocaleString()} / ${total.toLocaleString()} rows`;
-  pct.textContent=p+'%';
-}
-function hideProgress(){const w=$('uploadProgress');if(w)w.style.display='none';}
-
-async function loadStatus(){
-  try{
-    const r=await fetch('/api/status',{cache:'no-store'});
-    const text=await r.text();
-    let x;try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response.');}
-    if(!r.ok||!x.ok)throw new Error(x.error||'Unable to read server status.');
-    state=x;
-    set('districtCount',Number(x.uniqueDistrictCount||0).toLocaleString());
-    set('blockCount',Number(x.uniqueBlockCount||0).toLocaleString());
-    set('mvuDetailCount',Number(x.mvuDetailCount||0).toLocaleString());
-    const available=!!x.masterUploadAvailable;
-    const area=$('masterArea'),info=$('resetInfo');
-    if(area)area.classList.toggle('show',available);
-    if(info)info.classList.toggle('show',available);
-    if(x.latest){
-      set('latestDate',(x.latest.firstDateDisplay||'')+(x.latest.secondDateDisplay?' → '+x.latest.secondDateDisplay:''));
-      set('latestSource',x.latest.sourceFile||'');
-    }else{set('latestDate','—');set('latestSource','Not generated');}
-  }catch(e){show('Unable to read server status: '+e.message,'error');}
-}
-
-function rowsFromSheet(file,sheetName,asArrays=false){
-  return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      try{
-        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
-        const ws=sheetName?(wb.Sheets[sheetName]||wb.Sheets[wb.SheetNames[0]]):wb.Sheets[wb.SheetNames[0]];
-        if(!ws)throw new Error('Excel sheet not found.');
-        resolve(XLSX.utils.sheet_to_json(ws,asArrays
-          ? {header:1,defval:''}
-          : {defval:''}
-        ));
-      }catch(err){reject(err);}
-    };
-    reader.onerror=()=>reject(reader.error||new Error('Unable to read file.'));
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-async function sendMVUBatches(filename,rows){
-  if(!Array.isArray(rows)||rows.length<2) throw new Error('MVU Detail Excel must contain a header row and at least one data row.');
-
-  // rows is sheet_to_json({header:1}) => [header, data...]
-  const header=(rows[0]||[]).map(v=>String(v??'').replace(/^\uFEFF/,'').trim());
-  const normalize=s=>String(s??'').trim().toUpperCase().replace(/[._\s-]+/g,'');
-  const findCol=names=>{
-    const wanted=names.map(normalize);
-    return header.findIndex(h=>wanted.includes(normalize(h)));
-  };
-
-  const idx={
-    district:findCol(['District','District Name']),
-    block:findCol(['Block','Block Name']),
-    mvu:findCol(['MVU Number','MVUNumber','MVU No','MVU No.','Vehicle Number','Vehicle No','Vehicle No.']),
-    weekoff:findCol(['Week Off','WeekOff'])
-  };
-
-  if(idx.mvu<0) throw new Error('MVU Detail file must contain MVU Number column. Required format: District | Block | MVU Number | Week Off.');
-  if(idx.district<0) throw new Error('MVU Detail file must contain District column.');
-  if(idx.block<0) throw new Error('MVU Detail file must contain Block column.');
-  if(idx.weekoff<0) throw new Error('MVU Detail file must contain Week Off column.');
-
-  const cleanRows=rows.slice(1).filter(row=>Array.isArray(row)&&String(row[idx.mvu]??'').trim()!=='');
-  if(!cleanRows.length) throw new Error('No valid MVU Detail rows found.');
-
-  const batchSize=100;
-  let uploaded=0;
-  const batches=Math.ceil(cleanRows.length/batchSize);
-
-  for(let b=0;b<batches;b++){
-    const batchRows=[header,...cleanRows.slice(b*batchSize,(b+1)*batchSize)];
-    const mode=b===0&&b===batches-1?'replace_finish':(b===0?'start':(b===batches-1?'finish':'chunk'));
-
-    const r=await fetch('/api/upload/mvudetail',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({filename,rows:batchRows,mode})
-    });
-
-    const text=await r.text();
-    let x;
-    try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response on MVU Detail batch '+(b+1)+'.');}
-    if(!r.ok||!x.ok) throw new Error(x.error||`MVU Detail upload failed on batch ${b+1}.`);
-
-    uploaded+=cleanRows.slice(b*batchSize,(b+1)*batchSize).length;
-    setProgress(uploaded,cleanRows.length,'Uploading MVU Details');
-  }
-
-  return uploaded;
-}
-
-async function uploadMVUDetail(){
-  const input=$('mvuDetailFile');
-  if(!input?.files?.[0])return show('Please select the MVU Detail Excel file first.','error');
-  const btn=$('mvuDetailBtn');
-  try{
-    btn.disabled=true;
-    show('Reading MVU Detail file…','info');
-    setProgress(0,1,'Preparing upload');
-    const rows=await rowsFromSheet(input.files[0],null,true);
-    if(!rows.length)throw new Error('MVU Detail sheet is empty.');
-    setProgress(0,rows.length,'Uploading MVU Details');
-    const n=await sendMVUBatches(input.files[0].name,rows);
-    input.value='';
-    setProgress(n,n,'Upload complete');
-    await loadStatus();
-    show(`MVU Details uploaded successfully: ${n.toLocaleString()} rows. Old data was replaced automatically.`,'success');
-    setTimeout(hideProgress,1200);
-  }catch(e){show(e.message,'error');console.error(e);}
-  finally{btn.disabled=false;}
-}
-
-async function generate(){
-  if(!state||!state.mvuDetailCount)return show('Please upload MVU Detail first.','error');
-  const input=$('detailedFile');
-  if(!input?.files?.[0])return show('Please select DetailedReport.xlsx first.','error');
-  const btn=$('generateBtn');
-  try{
-    btn.disabled=true;
-    show('Reading Detailed Report in your browser…','info');
-    const all=await rowsFromSheet(input.files[0]);
-    if(!all.length)throw new Error('Detailed Report is empty.');
-    const required=['CreatedDateTime','LevelType','Type','CloseRemarks','TicketStatus','SubStatus'];
-    const mvuKeys=['MVU Number','MVUNumber','MVU No','MVU No.','Vehicle Number','Vehicle No','Vehicle No.'];
-    const mvuKey=mvuKeys.find(k=>k in all[0]);
-    if(!mvuKey)throw new Error('Detailed Report must contain MVU Number column.');
-    const rows=all.map(r=>{const o={};for(const k of required)o[k]=r[k]??'';o[mvuKey]=r[mvuKey]??'';if('TicketID' in r)o.TicketID=r.TicketID??'';return o;});
-    show(`Sending ${rows.length.toLocaleString()} rows for report calculation…`,'info');
-    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:input.files[0].name,rows})});
-    const text=await r.text();let x;try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response for Generate Report.');}
-    if(!r.ok||!x.ok)throw new Error(x.error||'Report generation failed.');
-    input.value='';show('Report generated successfully. Opening Result Page…','success');
-    window.location.href='/result.html';
-  }catch(e){show(e.message,'error');console.error(e);}
-  finally{btn.disabled=false;}
-}
-
-async function hardReset(){
-  const password=prompt('Hard Reset Password:');
-  if(password===null)return;
-  if(password!=='1122')return show('Wrong password. Hard Reset cancelled.','error');
-  if(!confirm('Hard Reset will keep the current report and MVU Details. It only unlocks MVU Detail upload so you can replace the old details. Continue?'))return;
-  try{
-    const r=await fetch('/api/reset/hard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});
-    const text=await r.text();let x;try{x=JSON.parse(text);}catch(_){throw new Error('Server returned non-JSON response.');}
-    if(!r.ok||!x.ok)throw new Error(x.error||'Hard Reset failed.');
-    show(x.message,'success');
-    await loadStatus();
-  }catch(e){show(e.message,'error');}
-}
-
-$('mvuDetailBtn').onclick=uploadMVUDetail;
-$('generateBtn').onclick=generate;
-$('hardResetBtn').onclick=hardReset;
-loadStatus();
-setInterval(loadStatus,10000);
-</script>
-
-</body>
-</html>
+const $=id=>document.getElementById(id);let state=null,mvuRows=[];
+function show(msg,type='info'){const n=$('notice');n.textContent=msg;n.className='notice '+type;}
+async function loadStatus(){try{const r=await fetch('/api/status',{cache:'no-store'});const x=await r.json();state=x;const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};set('districtCount',Number(x.uniqueDistrictCount||0).toLocaleString());set('blockCount',Number(x.uniqueBlockCount||0).toLocaleString());}catch(e){show('Unable to read server status: '+e.message,'error');}}
+function rowsFromSheet(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]];resolve(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));}catch(err){reject(err)}};reader.onerror=()=>reject(reader.error||new Error('Unable to read file.'));reader.readAsArrayBuffer(file);});}
+function setMvuProgress(current,total){$('mvuProgressWrap').style.display='block';const pct=total?Math.round(current/total*100):0;$('mvuProgressBar').style.width=pct+'%';$('mvuProgressPct').textContent=pct+'%';$('mvuProgressText').textContent=`Uploading ${current.toLocaleString()} / ${total.toLocaleString()} rows`;}
+async function uploadMVUDetail(){const input=$('mvuDetailFile');if(!input.files[0])return show('Please select MVU Details Excel first.','error');try{show('Reading MVU Details…');const rows=await rowsFromSheet(input.files[0]);if(rows.length<2)throw new Error('MVU Detail file is empty.');const total=rows.length-1,batchSize=100;setMvuProgress(0,total);for(let i=0;i<total;i+=batchSize){const batch=[rows[0],...rows.slice(i+1,Math.min(i+1+batchSize,rows.length))];const mode=i===0&&i+batchSize>=total?'replace_finish':(i===0?'start':(i+batchSize>=total?'finish':'chunk'));const r=await fetch('/api/upload/mvudetail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:input.files[0].name,rows:batch,mode})});const text=await r.text();let x;try{x=JSON.parse(text)}catch(_){throw new Error('Server returned non-JSON response on MVU Detail batch.')};if(!r.ok||!x.ok)throw new Error(x.error||'MVU Detail upload failed.');setMvuProgress(Math.min(i+batchSize,total),total);}input.value='';await loadStatus();await loadMVUTable();show(`MVU Details updated successfully: ${total.toLocaleString()} rows.`,'success');}catch(e){show(e.message,'error');console.error(e)}}
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+async function loadMVUTable(){try{const district=$('districtFilter').value,q=$('mvuSearch').value.trim();const r=await fetch('/api/mvudetail/list?district='+encodeURIComponent(district)+'&q='+encodeURIComponent(q),{cache:'no-store'});const x=await r.json();if(!r.ok||!x.ok)throw new Error(x.error||'Unable to load MVU Details.');mvuRows=x.rows||[];$('mvuRowCount').textContent=mvuRows.length.toLocaleString()+' rows';const opts=['<option value="">All Districts</option>',...(x.districts||[]).map(d=>`<option value="${esc(d)}">${esc(d)}</option>`)].join('');const old=$('districtFilter').value;$('districtFilter').innerHTML=opts;$('districtFilter').value=(x.districts||[]).includes(old)?old:'';if(q||district){}$('mvuTableBody').innerHTML=mvuRows.length?mvuRows.map((r,i)=>`<tr><td>${esc(r.district)}</td><td>${esc(r.block)}</td><td>${esc(r.mvu_number)}</td><td>${esc(r.paravet_name)}</td><td>${esc(r.paravet_id)}</td><td>${esc(r.week_off)}</td><td><button class="table-btn edit" onclick="openMvuEdit(${i})">Edit</button><button class="table-btn del" onclick="deleteOneMvu(${i})">Delete</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty-cell">No MVU Details found on server.</td></tr>';}catch(e){show(e.message,'error')}}
+function openMvuEdit(i){const r=mvuRows[i];if(!r)return;$('editOldMvu').value=r.mvu_number||'';$('editDistrict').value=r.district||'';$('editBlock').value=r.block||'';$('editMvu').value=r.mvu_number||'';$('editParavetName').value=r.paravet_name||'';$('editParavetID').value=r.paravet_id||'';$('editWeekOff').value=r.week_off||'';$('mvuEditModal').style.display='flex'}
+$('cancelMvuEdit').onclick=()=>{$('mvuEditModal').style.display='none'};
+async function saveMvuEdit(){try{const body={oldMvuNumber:$('editOldMvu').value,mvuNumber:$('editMvu').value,paravetName:$('editParavetName').value,paravetID:$('editParavetID').value,district:$('editDistrict').value,block:$('editBlock').value,weekOff:$('editWeekOff').value};const r=await fetch('/api/mvudetail/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),x=await r.json();if(!r.ok||!x.ok)throw new Error(x.error||'Update failed.');$('mvuEditModal').style.display='none';await loadStatus();await loadMVUTable();show('MVU Detail updated on server successfully.','success')}catch(e){show(e.message,'error')}}
+$('saveMvuEdit').onclick=saveMvuEdit;
+async function deleteOneMvu(i){const r=mvuRows[i];if(!r||!confirm(`Delete MVU ${r.mvu_number} from server?`))return;try{const res=await fetch('/api/mvudetail/delete-one',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mvuNumber:r.mvu_number})}),x=await res.json();if(!res.ok||!x.ok)throw new Error(x.error||'Delete failed.');await loadStatus();await loadMVUTable();show(`MVU ${r.mvu_number} deleted.`,'success')}catch(e){show(e.message,'error')}}
+async function deleteAllMvu(){if(!confirm('Are you sure? ALL MVU Details will be deleted from the server.'))return;try{const r=await fetch('/api/mvudetail/delete-all',{method:'POST'}),x=await r.json();if(!r.ok||!x.ok)throw new Error(x.error||'Delete all failed.');await loadStatus();await loadMVUTable();show('All MVU Details deleted from server.','success')}catch(e){show(e.message,'error')}}
+async function generate(){const input=$('detailedFile');if(!state||!Number(state.mvuDetailCount))return show('Please upload MVU Details first.','error');if(!input.files[0])return show('Please select DetailedReport.xlsx first.','error');try{show('Calculating report…');const file=input.files[0],rows=await rowsFromSheet(file),header=rows[0]||[];const objects=rows.slice(1).map(row=>{const o={};header.forEach((h,i)=>o[String(h??'').trim()]=row[i]);return o});const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:file.name,rows:objects})});const text=await r.text();let x;try{x=JSON.parse(text)}catch(_){throw new Error('Server returned non-JSON response for Generate Report.')};if(!r.ok||!x.ok)throw new Error(x.error||'Report generation failed.');input.value='';const camp=(x.report?.validation?.campUnmatched)||[];if(camp.length){show(`Notice: ${camp.length} CAMP ParavetID(s) were not found in current MVU Details. See the table below.`,'error');renderCampNotice(camp);$('masterArea').classList.add('show');return;}window.location.href='/result.html';}catch(e){show(e.message,'error');console.error(e)}}
+function renderCampNotice(rows){let box=$('campNotice');if(!box){box=document.createElement('div');box.id='campNotice';box.className='notice error';$('detailPanel').after(box)}box.innerHTML='<strong>⚠️ CAMP ParavetID mismatch</strong><div class="table-wrap" style="margin-top:8px;background:#fff"><table class="mvu-table"><thead><tr><th>District</th><th>Block</th><th>MVU Number</th><th>Paravet Name</th><th>ParavetID</th></tr></thead><tbody>'+rows.map(r=>`<tr><td>${esc(r.district)}</td><td>${esc(r.block)}</td><td>${esc(r.mvuNumber)}</td><td>${esc(r.paravetName)}</td><td>${esc(r.paravetID)}</td></tr>`).join('')+'</tbody></table></div>'}
+$('changeMasterBtn').onclick=()=>{$('masterArea').classList.toggle('show');loadMVUTable()};$('mvuDetailBtn').onclick=uploadMVUDetail;$('deleteAllMVUBtn').onclick=deleteAllMvu;$('refreshMVUBtn').onclick=loadMVUTable;$('districtFilter').onchange=loadMVUTable;$('mvuSearch').oninput=()=>{clearTimeout(window.mvuSearchTimer);window.mvuSearchTimer=setTimeout(loadMVUTable,250)};$('generateBtn').onclick=generate;loadStatus();
+</script></body></html>
