@@ -107,17 +107,15 @@ async function processDetailed(db,rows,originalName,masters){
   for(const r of filtered){
     const d=dateKey(r.CreatedDateTime); if(!d)continue; dates.add(d);
     const paravet=clean(r[paravetCol]);
+    const sourceParavetName=firstField(r,paravetNameCols);
+    const ticketId=firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]);
+    const sourceDistrict=firstField(r,["District","District Name"]);
+    const sourceBlock=firstField(r,["Block","Block Name"]);
+    const sourceMvu=firstField(r,["MVU Number","MVUNumber","MVU No","MVU No.","Vehicle Number","Vehicle No","Vehicle No."]);
     const m=detailByParavet.get(norm(paravet));
     if(!m){
       const isCamp=norm(paravet).startsWith("CAMP");
-      if(isCamp){
-        const ticketId=firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]);
-        const sourceDistrict=firstField(r,["District","District Name"]);
-        const sourceBlock=firstField(r,["Block","Block Name"]);
-        const sourceMvu=firstField(r,["MVU Number","MVUNumber","MVU No","MVU No.","Vehicle Number","Vehicle No","Vehicle No."]);
-        const sourceParavetName=firstField(r,paravetNameCols);
-        unmatched.push({paravetID:paravet,paravetName:sourceParavetName,date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu});
-      }
+      if(isCamp)unmatched.push({paravetID:paravet,paravetName:sourceParavetName,date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu});
       continue;
     }
     records.push({date:d,paravetID:paravet,vehicle:m.mvu_number,district:m.district,block:m.block,audio:ticketAudio(r)});
