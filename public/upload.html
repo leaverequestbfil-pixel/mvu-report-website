@@ -912,23 +912,10 @@ input[type="file"]:disabled{
   <div class="status-card">
 
     <span>
-      Total Block
+      Unique Block
     </span>
 
     <strong id="blockCount">
-      0
-    </strong>
-
-  </div>
-
-
-  <div class="status-card">
-
-    <span>
-      Total MVU
-    </span>
-
-    <strong id="mvuCount">
       0
     </strong>
 
@@ -976,7 +963,7 @@ input[type="file"]:disabled{
         </h2>
 
         <p>
-          Upload the actual two-date DetailedReport file
+          Upload the actual DetailedReport file • Maximum 5 dates
         </p>
 
       </div>
@@ -1000,9 +987,15 @@ input[type="file"]:disabled{
     </button>
 
 
+    <div id="generateProgressWrap" class="progress-wrap" style="display:none;">
+      <div class="progress-label"><span id="generateProgressText">Preparing...</span><span id="generateProgressPct">0%</span></div>
+      <div class="progress-track"><div id="generateProgressBar" class="progress-bar"></div></div>
+      <div id="generateProgressSteps" style="margin-top:6px;font-size:9px;line-height:1.55;color:#59636a;"></div>
+    </div>
+
     <div class="hint">
 
-      Filters TA, Enquiry and WT rows before aggregation.
+      Filters TA and Enquiry from main calculation; WT Hospital Area cases are retained for Hospital Area details. Maximum 5 dates.
 
     </div>
 
@@ -1118,7 +1111,7 @@ input[type="file"]:disabled{
 <script>
 const $=id=>document.getElementById(id);let state=null,mvuRows=[];
 function show(msg,type='info'){const n=$('notice');n.textContent=msg;n.className='notice '+type;}
-async function loadStatus(){try{const r=await fetch('/api/status',{cache:'no-store'});const x=await r.json();state=x;const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};set('districtCount',Number(x.uniqueDistrictCount||0).toLocaleString());set('blockCount',Number(x.totalBlockCount||0).toLocaleString());set('mvuCount',Number(x.mvuDetailCount||0).toLocaleString());}catch(e){show('Unable to read server status: '+e.message,'error');}}
+async function loadStatus(){try{const r=await fetch('/api/status',{cache:'no-store'});const x=await r.json();state=x;const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};set('districtCount',Number(x.uniqueDistrictCount||0).toLocaleString());set('blockCount',Number(x.uniqueBlockCount||0).toLocaleString());}catch(e){show('Unable to read server status: '+e.message,'error');}}
 function rowsFromSheet(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]];resolve(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));}catch(err){reject(err)}};reader.onerror=()=>reject(reader.error||new Error('Unable to read file.'));reader.readAsArrayBuffer(file);});}
 function setMvuProgress(current,total){$('mvuProgressWrap').style.display='block';const pct=total?Math.round(current/total*100):0;$('mvuProgressBar').style.width=pct+'%';$('mvuProgressPct').textContent=pct+'%';$('mvuProgressText').textContent=`Uploading ${current.toLocaleString()} / ${total.toLocaleString()} rows`;}
 async function uploadMVUDetail(){const input=$('mvuDetailFile');if(!input.files[0])return show('Please select MVU Details Excel first.','error');try{show('Reading MVU Details…');const rows=await rowsFromSheet(input.files[0]);if(rows.length<2)throw new Error('MVU Detail file is empty.');const total=rows.length-1,batchSize=100;setMvuProgress(0,total);for(let i=0;i<total;i+=batchSize){const batch=[rows[0],...rows.slice(i+1,Math.min(i+1+batchSize,rows.length))];const mode=i===0&&i+batchSize>=total?'replace_finish':(i===0?'start':(i+batchSize>=total?'finish':'chunk'));const r=await fetch('/api/upload/mvudetail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:input.files[0].name,rows:batch,mode})});const text=await r.text();let x;try{x=JSON.parse(text)}catch(_){throw new Error('Server returned non-JSON response on MVU Detail batch.')};if(!r.ok||!x.ok)throw new Error(x.error||'MVU Detail upload failed.');setMvuProgress(Math.min(i+batchSize,total),total);}input.value='';await loadStatus();await loadMVUTable();show(`MVU Details updated successfully: ${total.toLocaleString()} rows.`,'success');}catch(e){show(e.message,'error');console.error(e)}}
@@ -1130,7 +1123,9 @@ async function saveMvuEdit(){try{const body={oldMvuNumber:$('editOldMvu').value,
 $('saveMvuEdit').onclick=saveMvuEdit;
 async function deleteOneMvu(i){const r=mvuRows[i];if(!r||!confirm(`Delete MVU ${r.mvu_number} from server?`))return;try{const res=await fetch('/api/mvudetail/delete-one',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mvuNumber:r.mvu_number})}),x=await res.json();if(!res.ok||!x.ok)throw new Error(x.error||'Delete failed.');await loadStatus();await loadMVUTable();show(`MVU ${r.mvu_number} deleted.`,'success')}catch(e){show(e.message,'error')}}
 async function deleteAllMvu(){if(!confirm('Are you sure? ALL MVU Details will be deleted from the server.'))return;try{const r=await fetch('/api/mvudetail/delete-all',{method:'POST'}),x=await r.json();if(!r.ok||!x.ok)throw new Error(x.error||'Delete all failed.');await loadStatus();await loadMVUTable();show('All MVU Details deleted from server.','success')}catch(e){show(e.message,'error')}}
-async function generate(){const input=$('detailedFile');if(!state||!Number(state.mvuDetailCount))return show('Please upload MVU Details first.','error');if(!input.files[0])return show('Please select DetailedReport.xlsx first.','error');try{show('Calculating report…');const file=input.files[0],rows=await rowsFromSheet(file),header=rows[0]||[];const objects=rows.slice(1).map(row=>{const o={};header.forEach((h,i)=>o[String(h??'').trim()]=row[i]);return o});const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:file.name,rows:objects})});const text=await r.text();let x;try{x=JSON.parse(text)}catch(_){throw new Error('Server returned non-JSON response for Generate Report.')};if(!r.ok||!x.ok)throw new Error(x.error||'Report generation failed.');input.value='';const camp=(x.report?.validation?.campUnmatched)||[];if(camp.length){show(`Notice: ${camp.length} CAMP ParavetID(s) were not found in current MVU Details. See the table below.`,'error');renderCampNotice(camp);$('masterArea').classList.add('show');return;}window.location.href='/result.html';}catch(e){show(e.message,'error');console.error(e)}}
+function setGenerateProgress(pct,text,steps){const wrap=$('generateProgressWrap');if(!wrap)return;wrap.style.display='block';$('generateProgressBar').style.width=Math.max(0,Math.min(100,pct))+'%';$('generateProgressPct').textContent=Math.round(pct)+'%';$('generateProgressText').textContent=text;$('generateProgressSteps').innerHTML=steps||'';}
+async function generate(){const input=$('detailedFile');if(!state||!Number(state.mvuDetailCount))return show('Please upload MVU Details first.','error');if(!input.files[0])return show('Please select DetailedReport.xlsx first.','error');const button=$('generateBtn');const oldButton=button.textContent;button.disabled=true;try{show('Generating report…');setGenerateProgress(3,'Preparing Detailed Report…','⏳ File selected');await new Promise(r=>setTimeout(r,120));const file=input.files[0];setGenerateProgress(10,'Reading Excel file…','✅ File selected<br>⏳ Reading workbook');const rows=await rowsFromSheet(file);if(rows.length<2)throw new Error('Detailed Report file is empty.');setGenerateProgress(25,`Excel read complete • ${Math.max(rows.length-1,0).toLocaleString()} rows found`,'✅ File selected<br>✅ Workbook read<br>⏳ Parsing rows');const header=rows[0]||[];const objects=[];const totalRows=Math.max(rows.length-1,0);for(let i=1;i<rows.length;i++){const row=rows[i],o={};header.forEach((h,j)=>o[String(h??'').trim()]=row[j]);objects.push(o);if(i%5000===0||i===rows.length-1){const pct=25+Math.round((i/Math.max(totalRows,1))*25);setGenerateProgress(pct,`Parsing rows… ${i.toLocaleString()} / ${totalRows.toLocaleString()}`,`✅ File selected<br>✅ Workbook read<br>🔄 Parsing ${i.toLocaleString()} / ${totalRows.toLocaleString()} rows`);await new Promise(r=>setTimeout(r,0));}}setGenerateProgress(55,'Sending data to server…','✅ File selected<br>✅ Workbook parsed<br>⏳ Sending data to server');await new Promise(r=>setTimeout(r,100));const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:file.name,rows:objects})});setGenerateProgress(78,'Server calculation running…','✅ File selected<br>✅ Rows parsed<br>✅ Data sent to server<br>🔄 Matching ParavetID / calculating dates');const text=await r.text();let x;try{x=JSON.parse(text)}catch(_){throw new Error('Server returned non-JSON response for Generate Report.')};if(!r.ok||!x.ok)throw new Error(x.error||'Report generation failed.');setGenerateProgress(92,'Finalizing report…','✅ Data processed<br>✅ MVU calculations completed<br>⏳ Saving report');await new Promise(r=>setTimeout(r,250));input.value='';setGenerateProgress(100,'Report generated successfully','✅ File read<br>✅ Data parsed<br>✅ Server calculation completed<br>✅ Report saved<br>✅ Opening report');const camp=(x.report?.validation?.campUnmatched)||[];if(camp.length){show(`Notice: ${camp.length} CAMP ParavetID(s) were not found in current MVU Details. See the table below.`,'error');renderCampNotice(camp);$('masterArea').classList.add('show');button.disabled=false;button.textContent=oldButton;return;}setTimeout(()=>{window.location.href='/result.html';},250);}catch(e){setGenerateProgress(0,'Generation failed','❌ '+(e.message||'Unknown error'));show(e.message,'error');console.error(e);button.disabled=false;button.textContent=oldButton;}}
+
 function renderCampNotice(rows){let box=$('campNotice');if(!box){box=document.createElement('div');box.id='campNotice';box.className='notice error';$('detailPanel').after(box)}box.innerHTML='<strong>⚠️ CAMP ParavetID mismatch</strong><div class="table-wrap" style="margin-top:8px;background:#fff"><table class="mvu-table"><thead><tr><th>District</th><th>Block</th><th>MVU Number</th><th>Paravet Name</th><th>ParavetID</th><th>Ticket ID</th></tr></thead><tbody>'+rows.map(r=>`<tr><td>${esc(r.district)}</td><td>${esc(r.block)}</td><td>${esc(r.mvuNumber)}</td><td>${esc(r.paravetName)}</td><td>${esc(r.paravetID)}</td><td>${esc(r.ticketId)}</td></tr>`).join('')+'</tbody></table></div>'}
 $('changeMasterBtn').onclick=()=>{$('masterArea').classList.toggle('show');loadMVUTable()};$('mvuDetailBtn').onclick=uploadMVUDetail;$('deleteAllMVUBtn').onclick=deleteAllMvu;$('refreshMVUBtn').onclick=loadMVUTable;$('districtFilter').onchange=loadMVUTable;$('mvuSearch').oninput=()=>{clearTimeout(window.mvuSearchTimer);window.mvuSearchTimer=setTimeout(loadMVUTable,250)};$('generateBtn').onclick=generate;loadStatus();
 </script></body></html>
