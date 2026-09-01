@@ -109,8 +109,27 @@ async function processDetailed(db,rows,originalName,masters){
     const paravet=clean(r[paravetCol]);
     const m=detailByParavet.get(norm(paravet));
     if(!m){
-      const isCamp=norm(paravet).startsWith("CAMP");
-      if(isCamp)unmatched.push({paravetID:paravet,paravetName:sourceParavetName,date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu});
+      // IMPORTANT: A ParavetID may exist in the Detailed Report but not in
+      // the server MVU Detail master. In that case use the Detailed Report
+      // row itself for the mismatch details. Never use variables from the
+      // Hospital Area loop here (they belong to a different row/scope).
+      const sourceTicketId=firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]);
+      const sourceDistrict=firstField(r,["District","District Name"]);
+      const sourceBlock=firstField(r,["Block","Block Name"]);
+      const sourceMvu=firstField(r,["MVU Number","MVUNumber","MVU No","MVU No.","Vehicle Number","Vehicle No","Vehicle No."]);
+      const sourceParavetName=firstField(r,paravetNameCols);
+      if(paravet){
+        unmatched.push({
+          paravetID:paravet,
+          paravetName:sourceParavetName,
+          date:d,
+          ticketId:sourceTicketId,
+          district:sourceDistrict,
+          block:sourceBlock,
+          mvuNumber:sourceMvu,
+          isCamp:norm(paravet).startsWith("CAMP")
+        });
+      }
       continue;
     }
     records.push({date:d,paravetID:paravet,vehicle:m.mvu_number,district:m.district,block:m.block,audio:ticketAudio(r)});
