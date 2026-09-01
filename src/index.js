@@ -134,6 +134,7 @@ async function processDetailed(db,rows,originalName,masters){
   const afterTaEnquiry=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY");
   const filtered=afterTaEnquiry.filter(r=>!norm(r.CloseRemarks).includes("WT"));
   const hospitalSource=afterTaEnquiry;
+  for(const r of afterTaEnquiry){const d=dateKey(r.CreatedDateTime);if(d)dates.add(d);}
   const detailByParavet=new Map(Object.values(masters.mvuDetail).filter(r=>clean(r.paravet_id)).map(r=>[norm(r.paravet_id),r]));
   const records=[],unmatched=[],hospitalArea=[],dates=new Set();
 
@@ -153,7 +154,7 @@ async function processDetailed(db,rows,originalName,masters){
   }
 
   for(const r of filtered){
-    const d=dateKey(r.CreatedDateTime); if(!d)continue; dates.add(d);
+    const d=dateKey(r.CreatedDateTime); if(!d)continue;
     const paravet=clean(r[paravetCol]);
     // Non-CAMP ParavetIDs are Hospital Area only and must NEVER enter
     // normal MVU received/attend/pending calculations.
@@ -173,7 +174,7 @@ async function processDetailed(db,rows,originalName,masters){
 
   const sortedDates=[...dates].sort();
   if(!sortedDates.length)throw new Error("No valid CreatedDateTime dates found after filtering.");
-  if(sortedDates.length>2)throw new Error(`Uploaded Detailed Report contains ${sortedDates.length} dates. The report format supports exactly two dates.`);
+  if(sortedDates.length>5)throw new Error(`Uploaded Detailed Report contains ${sortedDates.length} dates. Maximum 5 dates are allowed.`);
   const firstDate=sortedDates[0],secondDate=sortedDates.length>1?sortedDates[1]:"";
   const roster=Object.values(masters.mvuDetail).map(r=>({vehicle:r.mvu_number,paravetID:r.paravet_id||"",district:r.district,block:r.block,week_off:r.week_off})).sort((a,b)=>`${a.district}|${a.block}|${a.vehicle}`.localeCompare(`${b.district}|${b.block}|${b.vehicle}`));
   if(!roster.length)throw new Error("MVU Detail master is empty. Upload MVU Detail first.");
@@ -193,19 +194,35 @@ async function processDetailed(db,rows,originalName,masters){
     if(weekOff && date && norm(weekOff)===norm(weekdayName(date))) return "Week off";
     return "Case not received";
   }
+  // Build every uploaded date. For a single date, all five columns are available.
+  // For multiple dates, the first date keeps only Total Received + Total Attend;
+  // every subsequent date gets Total Received + Total Attend + Not Attend + Pending + Remark.
   const rowsOut=roster.map(x=>{
-    const y=counts(x.paravetID,firstDate),t=counts(x.paravetID,secondDate);
-    return{district:x.district||"",block:x.block||"",vehicle:x.vehicle,paravetID:x.paravetID||"",weekOff:x.week_off||"",
-      yesterday:{received:y.received,attend:y.attend,remark:dailyRemark(y.received,x.week_off,firstDate)},
-      today:{received:t.received,attended:t.attend,notAttend:t.notAttend,pending:t.pending,remark:dailyRemark(t.received,x.week_off,secondDate)}};
+    const days={};
+    for(const d of sortedDates){
+      const c=counts(x.paravetID,d);
+      days[d]={received:c.received,attend:c.attend,notAttend:c.notAttend,pending:c.pending,remark:dailyRemark(c.received,x.week_off,d)};
+    }
+    return {district:x.district||"",block:x.block||"",vehicle:x.vehicle,paravetID:x.paravetID||"",weekOff:x.week_off||"",days};
   });
-  const byDistrict=new Map();for(const r of rowsOut){if(!byDistrict.has(r.district))byDistrict.set(r.district,[]);byDistrict.get(r.district).push(r);}
-  function total(rs){const o={vehicles:rs.length,yesterdayReceived:0,yesterdayAttend:0,todayReceived:0,attended:0,notAttend:0,pending:0};for(const r of rs){o.yesterdayReceived+=+r.yesterday.received||0;o.yesterdayAttend+=+r.yesterday.attend||0;o.todayReceived+=+r.today.received||0;o.attended+=+r.today.attended||0;o.notAttend+=+r.today.notAttend||0;o.pending+=+r.today.pending||0;}o.attendPct=o.todayReceived?+(o.attended/o.todayReceived*100).toFixed(2):0;o.casesReceived=o.yesterdayReceived+o.todayReceived;o.attendedCases=o.yesterdayAttend+o.attended;o.todayPending=o.pending;return o;}
-  const districts=[...byDistrict.entries()].map(([district,items])=>({district,rows:items.sort((a,b)=>{const aa=+a.yesterday.attend+ +a.today.attended,bb=+b.yesterday.attend+ +b.today.attended;if(bb!==aa)return bb-aa;return clean(a.block).localeCompare(clean(b.block));}),total:total(items)})).sort((a,b)=>clean(a.district).localeCompare(clean(b.district)));
+  const byDistrict=new Map();
+  for(const r of rowsOut){if(!byDistrict.has(r.district))byDistrict.set(r.district,[]);byDistrict.get(r.district).push(r);}
+  function total(rs){
+    const o={vehicles:rs.length,totalReceived:0,totalAttend:0,attendPct:0,byDate:{}};
+    for(const d of sortedDates){
+      const t={received:0,attend:0,notAttend:0,pending:0};
+      for(const r of rs){const c=r.days?.[d]||{};t.received+=+c.received||0;t.attend+=+c.attend||0;t.notAttend+=+c.notAttend||0;t.pending+=+c.pending||0;}
+      o.byDate[d]=t;o.totalReceived+=t.received;o.totalAttend+=t.attend;
+    }
+    o.attendPct=o.totalReceived?Number((o.totalAttend/o.totalReceived*100).toFixed(2)):0;
+    return o;
+  }
+  const districts=[...byDistrict.entries()].map(([district,items])=>({district,rows:items.sort((a,b)=>{const aa=sortedDates.reduce((n,d)=>n+num(a.days?.[d]?.attend),0),bb=sortedDates.reduce((n,d)=>n+num(b.days?.[d]?.attend),0);return bb-aa||clean(a.block).localeCompare(clean(b.block));}),total:total(items)})).sort((a,b)=>clean(a.district).localeCompare(clean(b.district)));
   const overall=total(rowsOut);
+  // Keep the existing hospital-area data independent of district filters.
   const hospitalAreaCounts=Object.entries(hospitalArea.reduce((m,x)=>(m[x.date]=(m[x.date]||0)+1,m),{})).sort(([a],[b])=>a.localeCompare(b)).map(([date,count])=>({date,count,dateDisplay:displayDate(date)}));
   const generatedAt=now(),expiresAt=new Date(Date.now()+REPORT_TTL_MS).toISOString();
-  const report={generatedAt,expiresAt,sourceFile:originalName,firstDate,secondDate,firstDateDisplay:displayDate(firstDate),secondDateDisplay:displayDate(secondDate),districts,overall,validation:{sourceRows:rows.length,rowsAfterFilter:filtered.length,unmatchedParavetRows:unmatched.length,datesFound:sortedDates,campUnmatched:unmatched,hospitalAreaCounts,hospitalAreaRows:hospitalArea}};
+  const report={generatedAt,expiresAt,sourceFile:originalName,dates:sortedDates,firstDate,secondDate,firstDateDisplay:displayDate(firstDate),secondDateDisplay:displayDate(secondDate),districts,overall,validation:{sourceRows:rows.length,rowsAfterFilter:filtered.length,unmatchedParavetRows:unmatched.length,datesFound:sortedDates,campUnmatched:unmatched,hospitalAreaCounts,hospitalAreaRows:hospitalArea}};
   await db.prepare(`INSERT INTO generated_reports(generated_at,first_date,second_date,source_file,report_json,expires_at) VALUES(?,?,?,?,?,?)`).bind(generatedAt,firstDate,secondDate,originalName,JSON.stringify(report),expiresAt).run();
   await db.prepare(`DELETE FROM generated_reports WHERE id NOT IN (SELECT id FROM generated_reports ORDER BY id DESC LIMIT 30)`).run();
   await logUpload(db,"detailed",originalName,rows.length,"success",`Generated report for ${displayDate(firstDate)}${secondDate?" and "+displayDate(secondDate):""}. Filtered ${rows.length-filtered.length} rows.`);
@@ -276,10 +293,25 @@ async function api(request,env){
     return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="Hospital_Area_Details_${displayDate(date)}${suffix}.xlsx"`,"Cache-Control":"no-store"}});
   }
   if(path==="/api/report/export"&&request.method==="GET"){
-    const report=await getLatestReport(db);if(!report)return new Response("No report generated yet.",{status:404});const out=[];
-    for(const d of report.districts)d.rows.forEach((r,i)=>out.push({District:i===0?d.district:"",Block:r.block,"Vehicle No.":r.vehicle,[`${report.firstDateDisplay} Total Received`]:r.yesterday.received,[`${report.firstDateDisplay} Total Attend`]:r.yesterday.attend,[`${report.firstDateDisplay} Remark`]:r.yesterday.remark,[`${report.secondDateDisplay||"Today"} Total Received`]:r.today.received,"Total Attend":r.today.attended,"Not Attend":r.today.notAttend,Pending:r.today.pending,[`${report.secondDateDisplay||"Today"} Remark`]:r.today.remark}));
-    out.push({District:"OVERALL GRAND TOTAL",Block:"","Vehicle No.":"",[`${report.firstDateDisplay} Total Received`]:report.overall.yesterdayReceived,[`${report.firstDateDisplay} Total Attend`]:report.overall.yesterdayAttend,[`${report.firstDateDisplay} Remark`]:"",[`${report.secondDateDisplay||"Today"} Total Received`]:report.overall.todayReceived,"Total Attend":report.overall.attended,"Not Attend":report.overall.notAttend,Pending:report.overall.pending,[`${report.secondDateDisplay||"Today"} Remark`]:""});
-    const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(out);XLSX.utils.book_append_sheet(wb,ws,"MVU Daily Report");const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="MVU_Daily_Report_${report.firstDateDisplay}_${report.secondDateDisplay||""}.xlsx"`}});
+    const report=await getLatestReport(db);
+    if(!report)return new Response("No report generated yet.",{status:404});
+    const district=clean(url.searchParams.get("district"));
+    const selectedDate=clean(url.searchParams.get("date"));
+    const dates=Array.isArray(report.dates)&&report.dates.length?report.dates:[report.firstDate].filter(Boolean);
+    let districts=Array.isArray(report.districts)?report.districts:[];
+    if(district&&district!=="ALL")districts=districts.filter(d=>clean(d.district)===district);
+    const out=[];
+    if(selectedDate){
+      for(const d of districts)d.rows.forEach((r,i)=>{const x=r.days?.[selectedDate]||{};out.push({District:i===0?d.district:"",Block:r.block,"Vehicle No.":r.vehicle,"Total Received":num(x.received),"Total Attend":num(x.attend),"Not Attend":num(x.notAttend),Pending:num(x.pending),Remark:x.remark||""});});
+      const rows=districts.flatMap(d=>d.rows||[]),t=rows.reduce((a,r)=>{const x=r.days?.[selectedDate]||{};a.received+=num(x.received);a.attend+=num(x.attend);a.notAttend+=num(x.notAttend);a.pending+=num(x.pending);return a;},{received:0,attend:0,notAttend:0,pending:0});
+      out.push({District:district&&district!=="ALL"?`${district} — TOTAL`:"OVERALL GRAND TOTAL",Block:"","Vehicle No.":"","Total Received":t.received,"Total Attend":t.attend,"Not Attend":t.notAttend,Pending:t.pending,Remark:""});
+    }else{
+      for(const d of districts)d.rows.forEach((r,i)=>{const o={District:i===0?d.district:"",Block:r.block,"Vehicle No.":r.vehicle};for(let j=0;j<dates.length;j++){const dd=dates[j],x=r.days?.[dd]||{};o[`${displayDate(dd)} Total Received`]=num(x.received);o[`${displayDate(dd)} Total Attend`]=num(x.attend);if(dates.length===1||j>0){o[`${displayDate(dd)} Not Attend`]=num(x.notAttend);o[`${displayDate(dd)} Pending`]=num(x.pending);o[`${displayDate(dd)} Remark`]=x.remark||"";}}out.push(o);});
+      const g={District:"OVERALL GRAND TOTAL",Block:"","Vehicle No.":""};for(let j=0;j<dates.length;j++){const dd=dates[j],t=report.overall.byDate?.[dd]||{received:0,attend:0,notAttend:0,pending:0};g[`${displayDate(dd)} Total Received`]=t.received;g[`${displayDate(dd)} Total Attend`]=t.attend;if(dates.length===1||j>0){g[`${displayDate(dd)} Not Attend`]=t.notAttend;g[`${displayDate(dd)} Pending`]=t.pending;g[`${displayDate(dd)} Remark`]="";}}out.push(g);
+    }
+    const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(out);XLSX.utils.book_append_sheet(wb,ws,"MVU Daily Report");const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+    const name=selectedDate?`MVU_Daily_Report_${displayDate(selectedDate)}.xlsx`:`MVU_Daily_Report_${displayDate(dates[0])}_to_${displayDate(dates[dates.length-1])}.xlsx`;
+    return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="${name}"` ,"Cache-Control":"no-store"}});
   }
   if(path==="/api/mvudetail/template"&&request.method==="GET"){if(!(await requireMasterAccess(request,db)))return json({ok:false,error:"Master Data is locked. Unlock with the correct password."},403);
     const rows=[{District:"",Block:"", "MVU Number":"", "ParavetID":"", "Paravet Name":"", "Week Off":""}];
