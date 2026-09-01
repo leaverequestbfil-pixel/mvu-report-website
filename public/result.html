@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MVU Wise Report</title>
 <link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚑</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 :root{--green:#118b58;--green2:#087348;--green3:#0a6240;--ink:#1c2b2b;--muted:#718080;--line:#dce7e3;--paper:#fff;--texture1:rgba(17,139,88,.045);--texture2:rgba(0,0,0,.025)}
@@ -118,6 +119,7 @@ if(selectedDate){
     const rows=Array.isArray(district.rows)?[...district.rows]:[];
     rows.sort((a,b)=>num(getDay(b,selectedDate).attend)-num(getDay(a,selectedDate).attend)||String(a.block||'').localeCompare(String(b.block||'')));
     rows.forEach((row,index)=>{const x=getDay(row,selectedDate),rm=calculatedRemark(x.received,row.weekOff,selectedDate)||x.remark||'';html+='<tr>'+(showDistrict?`<td class="district-cell">${index===0?esc(district.district):''}</td>`:'')+`<td><b>${esc(row.block||'')}</b><br><small>${esc(row.vehicle||'')}</small></td><td class="num-cell">${num(x.received)}</td><td class="num-cell">${num(x.attend)}</td><td class="num-cell">${num(x.notAttend)}</td><td class="num-cell">${num(x.pending)}</td><td>${remark(rm)}</td></tr>`;});
+    if(showDistrict){const dt=totalsFor(rows,selectedDate);html+=`<tr class="total-row"><td colspan="2">${esc(district.district+' — TOTAL')}</td><td class="num-cell">${dt.received}</td><td class="num-cell">${dt.attend}</td><td class="num-cell">${dt.notAttend}</td><td class="num-cell">${dt.pending}</td><td></td></tr>`;}
   }
   html+=`<tr class="grand-row"><td colspan="${showDistrict?2:1}">${esc(selectedDistrict==='ALL'?'OVERALL GRAND TOTAL':selectedDistrict+' — TOTAL')}</td><td>${t.received}</td><td>${t.attend}</td><td>${t.notAttend}</td><td>${t.pending}</td><td></td></tr></tbody></table>`;
   $('report').innerHTML=`<div class="report-card"><div style="padding:8px 12px;font-weight:900;color:#0f7048;text-align:left">📅 ${esc(dateDisplay(selectedDate))}</div>${html}</div>`;
@@ -150,6 +152,15 @@ for(const district of districts){
     }
     html+='</tr>';
   });
+  if(showDistrict){
+    const dt=totalsFor(rows,dates[0]);
+    html+=`<tr class="total-row"><td colspan="2">${esc(district.district+' — TOTAL')}</td>`;
+    for(let i=0;i<dates.length;i++){
+      const d=dates[i],t=totalsFor(rows,d),five=(dates.length===1||i>0);
+      html+=`<td class="num-cell">${t.received}</td><td class="num-cell">${t.attend}</td>`+(five?`<td class="num-cell">${t.notAttend}</td><td class="num-cell">${t.pending}</td><td></td>`:'');
+    }
+    html+='</tr>';
+  }
 }
 html+=`<tr class="grand-row"><td colspan="${showDistrict?2:1}">${esc(selectedDistrict==='ALL'?'OVERALL GRAND TOTAL':selectedDistrict+' — TOTAL')}</td>`;
 for(let i=0;i<dates.length;i++){const d=dates[i],t=totalsFor(allRows,d),five=(dates.length===1||i>0);html+=`<td>${t.received}</td><td>${t.attend}</td>`+(five?`<td>${t.notAttend}</td><td>${t.pending}</td><td></td>`:'');}
