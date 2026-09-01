@@ -150,10 +150,25 @@ async function processDetailed(db,rows,originalName,masters){
   for(const r of filtered){
     const d=dateKey(r.CreatedDateTime); if(!d)continue; dates.add(d);
     const paravet=clean(r[paravetCol]);
+    const ticketId=firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]);
+    const sourceDistrict=firstField(r,["District","District Name"]);
+    const sourceBlock=firstField(r,["Block","Block Name"]);
+    const sourceMvu=firstField(r,["MVU Number","MVUNumber","MVU No","MVU No.","Vehicle Number","Vehicle No","Vehicle No."]);
+    const sourceParavetName=firstField(r,paravetNameCols);
     const m=detailByParavet.get(norm(paravet));
     if(!m){
-      const isCamp=norm(paravet).startsWith("CAMP");
-      if(isCamp)unmatched.push({paravetID:paravet,paravetName:sourceParavetName,date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu});
+      // If a ParavetID exists in Detailed Report but not in MVU Master,
+      // preserve the source-row details so the user can identify it.
+      unmatched.push({
+        paravetID:paravet,
+        paravetName:sourceParavetName,
+        date:d,
+        ticketId,
+        district:sourceDistrict,
+        block:sourceBlock,
+        mvuNumber:sourceMvu,
+        isCamp:norm(paravet).startsWith("CAMP")
+      });
       continue;
     }
     records.push({date:d,paravetID:paravet,vehicle:m.mvu_number,district:m.district,block:m.block,audio:ticketAudio(r)});
@@ -200,7 +215,19 @@ async function processDetailed(db,rows,originalName,masters){
 
 
 function json(data,status=200){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}});}
-async function bodyJson(request){const b=await request.json();if(!b||typeof b!=="object")throw new Error("JSON body is required.");return b;}
+async function bodyJson(request){
+  const encoding=norm(request.headers.get("Content-Encoding"));
+  let text;
+  if(encoding==="GZIP"){
+    const ds=new DecompressionStream("gzip");
+    const stream=request.body.pipeThrough(ds);
+    text=await new Response(stream).text();
+  }else{
+    text=await request.text();
+  }
+  let b;try{b=JSON.parse(text);}catch(e){throw new Error("Invalid JSON request body.");}
+  if(!b||typeof b!=="object")throw new Error("JSON body is required.");return b;
+}
 
 async function api(request,env){
   const db=env.DB,url=new URL(request.url),path=url.pathname;await ensureSchema(db);await cleanupExpiredData(db);
@@ -227,7 +254,11 @@ async function api(request,env){
   }
   if(path==="/api/generate"&&request.method==="POST"){
     try{const masters=await loadMasters(db);if(!Object.keys(masters.mvuDetail).length)throw new Error("Please upload MVU Detail master first.");const body=await bodyJson(request);const report=await processDetailed(db,body.rows,clean(body.filename)||"DetailedReport.xlsx",masters);return json({ok:true,report});}
-    catch(e){await logUpload(db,"detailed","",0,"error",e.message);return json({ok:false,error:e.message},400);}
+    catch(e){
+      try{await logUpload(db,"detailed","",0,"error",e?.message||"Report generation failed.");}
+      catch(logErr){console.error("Generate error log failed:",logErr);}
+      return json({ok:false,error:e?.message||"Report generation failed."},400);
+    }
   }
   if(path==="/api/report"&&request.method==="GET"){const report=await getLatestReport(db);if(!report)return json({ok:false,error:"No report generated yet."},404);return json({ok:true,report});}
   if(path==="/api/report/hospital-area/export"&&request.method==="GET"){
