@@ -1008,7 +1008,7 @@ body{
 #detailPanel{width:100%;box-sizing:border-box}
 #detailedFile{position:relative;z-index:1;display:block;width:100%;box-sizing:border-box}
 #generateBtn{position:relative;z-index:5;display:block;width:100%;box-sizing:border-box;cursor:pointer}
-#generateBtn:disabled{cursor:not-allowed;opacity:.55;filter:grayscale(.15)}
+#generateBtn:disabled{cursor:wait}
 /* Do not let the file picker overlap or become the Generate button hit-area. */
 .primary-panel{position:relative;isolation:isolate}
 .primary-panel input[type=file]{position:relative;z-index:1}
@@ -1225,7 +1225,7 @@ body{
         </h2>
 
         <p>
-          Upload the actual two-date DetailedReport file
+          Upload 1 to 5 days of DetailedReport data
         </p>
 
       </div>
@@ -1425,7 +1425,7 @@ body{
 <script>
 const $=id=>document.getElementById(id);let state=null,mvuRows=[];
 function show(msg,type='info'){const n=$('notice');n.textContent=msg;n.className='notice '+type;}
-async function loadStatus(){try{const r=await fetch('/api/status',{cache:'no-store'});const x=await r.json();if(!r.ok||!x.ok)throw new Error(x.error||'Unable to read server status.');state=x;const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};set('districtCount',Number(x.uniqueDistrictCount||0).toLocaleString());set('blockCount',Number((x.totalBlockCount??x.uniqueBlockCount)||0).toLocaleString());return x;}catch(e){show('Unable to read server status: '+e.message,'error');return null;}}
+async function loadStatus(){try{const r=await fetch('/api/status',{cache:'no-store'});const x=await r.json();state=x;const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};set('districtCount',Number(x.uniqueDistrictCount||0).toLocaleString());set('blockCount',Number((x.totalBlockCount??x.uniqueBlockCount)||0).toLocaleString());}catch(e){show('Unable to read server status: '+e.message,'error');}}
 function rowsFromSheet(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]];resolve(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));}catch(err){reject(err)}};reader.onerror=()=>reject(reader.error||new Error('Unable to read file.'));reader.readAsArrayBuffer(file);});}
 function setMvuProgress(current,total){$('mvuProgressWrap').style.display='block';const pct=total?Math.round(current/total*100):0;$('mvuProgressBar').style.width=pct+'%';$('mvuProgressPct').textContent=pct+'%';$('mvuProgressText').textContent=`Uploading ${current.toLocaleString()} / ${total.toLocaleString()} rows`;}
 async function uploadMVUDetail(){const input=$('mvuDetailFile');if(!input.files[0])return show('Please select MVU Details Excel first.','error');try{show('Reading MVU Details…');const rows=await rowsFromSheet(input.files[0]);if(rows.length<2)throw new Error('MVU Detail file is empty.');const total=rows.length-1,batchSize=100;setMvuProgress(0,total);for(let i=0;i<total;i+=batchSize){const batch=[rows[0],...rows.slice(i+1,Math.min(i+1+batchSize,rows.length))];const mode=i===0&&i+batchSize>=total?'replace_finish':(i===0?'start':(i+batchSize>=total?'finish':'chunk'));const r=await fetch('/api/upload/mvudetail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:input.files[0].name,rows:batch,mode})});const text=await r.text();let x;try{x=JSON.parse(text)}catch(_){throw new Error('Server returned non-JSON response on MVU Detail batch.')};if(!r.ok||!x.ok)throw new Error(x.error||'MVU Detail upload failed.');setMvuProgress(Math.min(i+batchSize,total),total);}input.value='';await loadStatus();await loadMVUTable();show(`MVU Details updated successfully: ${total.toLocaleString()} rows.`,'success');}catch(e){show(e.message,'error');console.error(e)}}
@@ -1567,57 +1567,22 @@ async function restorePersistentSummary(){
   summaryPollTimer=setInterval(verifySummaryStillOnServer,15000);
 }
 
-let detailedFileReady=false;
-
-function setGenerateReady(ready){
-  detailedFileReady=!!ready;
-  const btn=$('generateBtn');
-  if(btn){
-    btn.disabled=!detailedFileReady;
-    btn.title=detailedFileReady?'Ready to generate report':'Attach a valid Detailed Report first';
-  }
-}
-
-function markAttachedSuccess(file,rowCount){
-  show(`✅ Report attached successfully — ${file.name} • ${rowCount.toLocaleString()} rows.`,'success');
-  const status=$('summaryStatus');
-  if(status)status.textContent=`Report attached successfully • ${rowCount.toLocaleString()} rows ready for Generate Report.`;
-}
-
 $('detailedFile').addEventListener('change',async()=>{
-  const input=$('detailedFile'),file=input.files?.[0];
-  setGenerateReady(false);
-  if(!file){
-    $('dataSummaryWrap')?.classList.remove('show');
-    return;
-  }
+  const file=$('detailedFile').files?.[0];
+  if(!file)return;
   try{
-    $('summaryStatus').textContent='Validating Detailed Report…';
+    $('summaryStatus').textContent='Reading Detailed Report for live summary…';
     const rows=await rowsFromSheet(file);
-    if(!rows.length || !Array.isArray(rows[0]) || rows[0].length===0)throw new Error('Invalid or empty Excel file.');
-    if(rows.length<2)throw new Error('Detailed Report file is empty.');
-    const headers=rows[0].map(v=>String(v??'').trim());
-    const required=['CreatedDateTime','LevelType','Type','CloseRemarks','TicketStatus','SubStatus'];
-    const missing=required.filter(c=>!headers.includes(c));
-    const hasParavet=headers.some(c=>String(c).toUpperCase().replace(/[._\s-]+/g,'')==='PARAVETID');
-    if(missing.length)throw new Error(`Missing required column(s): ${missing.join(', ')}`);
-    if(!hasParavet)throw new Error('Detailed Report must contain ParavetID column.');
     updateDataSummary(rows);
-    setGenerateReady(true);
-    markAttachedSuccess(file,Math.max(0,rows.length-1));
+    show(`Detailed Report loaded: ${Math.max(0,rows.length-1).toLocaleString()} rows.`,'success');
   }catch(e){
     $('dataSummaryWrap')?.classList.remove('show');
-    input.value='';
-    setGenerateReady(false);
-    show('❌ Report not attached: '+e.message,'error');
+    show('Unable to calculate Data Summary: '+e.message,'error');
   }
 });
 
 async function generate(){
   const input=$('detailedFile');
-  if(!detailedFileReady || !input.files[0]){
-    return show('Please attach a valid Detailed Report first.','error');
-  }
   // Do not block Generate based on stale client-side status.
   // The server is the source of truth and will return a clear error if
   // MVU Master Data is actually missing. This prevents a stale `state`
@@ -1665,5 +1630,5 @@ $('masterPasswordCancel').onclick=()=>{$('masterPasswordModal').style.display='n
 $('masterPasswordSubmit').onclick=submitMasterPassword;
 $('masterPasswordInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitMasterPassword();if(e.key==='Escape')$('masterPasswordModal').style.display='none'});
 $('changeMasterBtn').onclick=unlockMaster;
-$('mvuDetailBtn').onclick=uploadMVUDetail;$('deleteAllMVUBtn').onclick=deleteAllMvu;$('refreshMVUBtn').onclick=loadMVUTable;$('districtFilter').onchange=loadMVUTable;$('mvuSearch').oninput=()=>{clearTimeout(window.mvuSearchTimer);window.mvuSearchTimer=setTimeout(loadMVUTable,250)};setGenerateReady(!!$('detailedFile')?.files?.[0]);$('generateBtn').addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();if(!detailedFileReady)return false;generate();return false;},true);loadStatus();restorePersistentSummary();
+$('mvuDetailBtn').onclick=uploadMVUDetail;$('deleteAllMVUBtn').onclick=deleteAllMvu;$('refreshMVUBtn').onclick=loadMVUTable;$('districtFilter').onchange=loadMVUTable;$('mvuSearch').oninput=()=>{clearTimeout(window.mvuSearchTimer);window.mvuSearchTimer=setTimeout(loadMVUTable,250)};$('generateBtn').addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();generate();return false;},true);loadStatus();restorePersistentSummary();
 </script></body></html>
