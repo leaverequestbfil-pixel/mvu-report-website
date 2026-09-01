@@ -1183,7 +1183,7 @@ async function generate(){
     setActivity(96,'Report generated. Loading result page…',3);
     await new Promise(r=>setTimeout(r,250));
     input.value='';
-    const unmatched=(x.report?.validation?.unmatchedParavetRows?x.report?.validation?.campUnmatched:[])||[];
+    const unmatched=Array.isArray(x.unmatched)?x.unmatched:[];
     if(unmatched.length){show(`Notice: ${unmatched.length} ParavetID(s) from Detailed Report were not found in current MVU Details. Details are shown below from the Detailed Report itself.`,'error');renderCampNotice(unmatched);$('masterArea').classList.add('show');btn.disabled=false;return;}
     setActivity(100,'Complete • Opening report…',3);
     window.location.href='/result.html';
