@@ -110,7 +110,14 @@ async function processDetailed(db,rows,originalName,masters){
     const m=detailByParavet.get(norm(paravet));
     if(!m){
       const isCamp=norm(paravet).startsWith("CAMP");
-      if(isCamp)unmatched.push({paravetID:paravet,paravetName:sourceParavetName,date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu});
+      if(isCamp){
+        const sourceParavetName=firstField(r,paravetNameCols);
+        const ticketId=firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]);
+        const sourceDistrict=firstField(r,["District","District Name"]);
+        const sourceBlock=firstField(r,["Block","Block Name"]);
+        const sourceMvu=firstField(r,["MVU Number","MVUNumber","MVU No","MVU No.","Vehicle Number","Vehicle No","Vehicle No."]);
+        unmatched.push({paravetID:paravet,paravetName:sourceParavetName,date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu});
+      }
       continue;
     }
     records.push({date:d,paravetID:paravet,vehicle:m.mvu_number,district:m.district,block:m.block,audio:ticketAudio(r)});
