@@ -40,9 +40,12 @@ async function loadMasters(db){
 
 async function cleanupExpired(db){
   await ensureSchema(db);
-  const cutoff=new Date(Date.now()-REPORT_TTL_MS).toISOString();
-  await db.prepare(`DELETE FROM generated_reports WHERE (expires_at IS NOT NULL AND expires_at <= ?) OR (expires_at IS NULL AND generated_at <= ?)`).bind(cutoff,cutoff).run();
-  await db.prepare(`DELETE FROM upload_log WHERE kind='detailed' AND uploaded_at <= ?`).bind(cutoff).run();
+  const nowIso=new Date().toISOString();
+  const legacyCutoff=new Date(Date.now()-REPORT_TTL_MS).toISOString();
+  // Reports with an explicit expiry are deleted exactly at expiry.
+  // Legacy rows without expires_at are deleted one hour after generated_at.
+  await db.prepare(`DELETE FROM generated_reports WHERE (expires_at IS NOT NULL AND expires_at <= ?) OR (expires_at IS NULL AND generated_at <= ?)`).bind(nowIso,legacyCutoff).run();
+  await db.prepare(`DELETE FROM upload_log WHERE kind='detailed' AND uploaded_at <= ?`).bind(legacyCutoff).run();
 }
 
 async function getLatestReport(db){
@@ -235,14 +238,12 @@ async function api(request,env){
     }
   }
   if(path==="/api/status"&&request.method==="GET"){
-    const latest=await getLatestReport(db);
-    const masterRows=(await db.prepare(`SELECT district,block,mvu_number FROM mvu_detail`).all()).results||[];
-    const mvuDetailCount=masterRows.length;
-    const d=new Set(masterRows.map(x=>clean(x.district)).filter(Boolean));
-    const b=new Set(masterRows.map(x=>clean(x.block)).filter(x=>x && !/^DIST\.?\s*HEAD\s*QUARTER$/i.test(x)));
+    const masters=await loadMasters(db),latest=await getLatestReport(db);
+    const rows=Object.values(masters.mvuDetail),mvuDetailCount=rows.length;
+    const d=new Set(rows.map(x=>clean(x.district)).filter(Boolean)),b=new Set(rows.map(x=>clean(x.block)).filter(x=>x && !/^dist\.?\s*head\s*quarter$/i.test(x)));
     const available=(await getState(db,"mvu_detail_upload_available"))==="1";
     const logs=await db.prepare(`SELECT kind,filename,row_count,status,message,uploaded_at FROM upload_log ORDER BY id DESC LIMIT 8`).all();
-    return json({ok:true,mvuDetailCount,uniqueDistrictCount:d.size,totalBlockCount:b.size,uniqueBlockCount:b.size,masterUploadAvailable:available||mvuDetailCount===0,latest,logs:logs.results||[]});
+    return json({ok:true,mvuDetailCount,uniqueDistrictCount:d.size,uniqueBlockCount:b.size,masterUploadAvailable:available||mvuDetailCount===0,latest,logs:logs.results||[]});
   }
   if(path==="/api/upload/mvudetail"&&request.method==="POST"){if(!(await requireMasterAccess(request,db)))return json({ok:false,error:"Master Data is locked. Unlock with the correct password."},403);
     try{const body=await bodyJson(request);const mode=clean(body.mode)||"chunk";const count=await saveMVUDetailChunk(db,Array.isArray(body.rows)?body.rows:[],clean(body.filename)||"MVU_Detail.xlsx",mode);return json({ok:true,count,message:mode==="finish"||mode==="replace_finish"?"MVU Detail uploaded successfully. Old data was replaced automatically.":`MVU Detail batch saved: ${count} rows.`});}
