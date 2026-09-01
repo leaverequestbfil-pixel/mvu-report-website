@@ -1583,7 +1583,10 @@ $('detailedFile').addEventListener('change',async()=>{
 
 async function generate(){
   const input=$('detailedFile');
-  if(!state||!Number(state.mvuDetailCount))return show('Please upload MVU Details first.','error');
+  // Do not block Generate based on stale client-side status.
+  // The server is the source of truth and will return a clear error if
+  // MVU Master Data is actually missing. This prevents a stale `state`
+  // value (e.g. 0 after page load) from blocking an already-uploaded master.
   if(!input.files[0])return show('Please select DetailedReport.xlsx first.','error');
   const button=$('generateBtn'); if(button)button.disabled=true;
   try{
