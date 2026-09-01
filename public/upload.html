@@ -982,6 +982,47 @@ body{
 }
 
 /* =========================================================
+   FINAL UI FIXES
+========================================================= */
+/* Keep the main upload area and top summary cards exactly aligned. */
+.cards.three{
+  width:760px;
+  max-width:100%;
+  margin:0 auto 12px;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.cards.three .status-card{
+  width:100%;
+  min-height:72px;
+  box-sizing:border-box;
+  background:#fff !important;
+  border:1px solid #d9e5df;
+  border-radius:10px;
+  box-shadow:0 4px 14px rgba(24,64,52,.07);
+  color:#176d4b;
+}
+.cards.three .status-card span{color:#6c777d}
+.cards.three .status-card strong{color:#117a4b}
+.upload-grid{width:760px;max-width:100%;margin:0 auto}
+#detailPanel{width:100%;box-sizing:border-box}
+#detailedFile{position:relative;z-index:1;display:block;width:100%;box-sizing:border-box}
+#generateBtn{position:relative;z-index:5;display:block;width:100%;box-sizing:border-box;cursor:pointer}
+#generateBtn:disabled{cursor:wait}
+/* Do not let the file picker overlap or become the Generate button hit-area. */
+.primary-panel{position:relative;isolation:isolate}
+.primary-panel input[type=file]{position:relative;z-index:1}
+.primary-panel #generateBtn{position:relative;z-index:10;margin-top:10px}
+.data-summary-wrap{width:760px;max-width:100%;margin:12px auto 0}
+@media(max-width:760px){
+  .cards.three{width:100%;grid-template-columns:1fr 1fr}
+  .upload-grid,.data-summary-wrap{width:100%}
+}
+@media(max-width:520px){
+  .cards.three{grid-template-columns:1fr}
+}
+
+/* =========================================================
    DYNAMIC UPLOAD DASHBOARD OVERRIDES
 ========================================================= */
 .topbar{position:relative;justify-content:center;min-height:76px;background:linear-gradient(135deg,#0f9a61,#087348);box-shadow:0 3px 12px rgba(0,0,0,.10)}
@@ -1405,6 +1446,78 @@ function updateDataSummary(rows){
     status.textContent=`TA: ${ta.toLocaleString()} • ENQUIRY: ${enquiry.toLocaleString()} • WT is excluded from normal MVU calculation • Hospital Area is overall`;
   }
 }
+
+const SUMMARY_STORAGE_KEY='mvu_report_summary_v1';
+let summaryPollTimer=null;
+function saveSummaryState(expiresAt){
+  const get=id=>$(id)?.textContent||'0';
+  const payload={
+    totalRows:get('summaryTotalRows'),
+    validRows:get('summaryValidRows'),
+    removedRows:get('summaryRemovedRows'),
+    wtRows:get('summaryWtRows'),
+    hospitalRows:get('summaryHospitalRows'),
+    expiresAt:expiresAt||''
+  };
+  localStorage.setItem(SUMMARY_STORAGE_KEY,JSON.stringify(payload));
+}
+function applyStoredSummary(data){
+  if(!data)return false;
+  const exp=Date.parse(data.expiresAt||'');
+  if(!exp || exp<=Date.now()){
+    localStorage.removeItem(SUMMARY_STORAGE_KEY);
+    return false;
+  }
+  const set=(id,v)=>{const e=$(id);if(e)e.textContent=Number(String(v).replace(/,/g,'' )||0).toLocaleString()};
+  set('summaryTotalRows',data.totalRows);
+  set('summaryValidRows',data.validRows);
+  set('summaryRemovedRows',data.removedRows);
+  set('summaryWtRows',data.wtRows);
+  set('summaryHospitalRows',data.hospitalRows);
+  $('dataSummaryWrap')?.classList.add('show');
+  const status=$('summaryStatus');
+  if(status)status.textContent='Server report is still available. Data Summary will remain until the server report expires.';
+  return true;
+}
+async function verifySummaryStillOnServer(){
+  const raw=localStorage.getItem(SUMMARY_STORAGE_KEY);
+  if(!raw)return;
+  let saved;try{saved=JSON.parse(raw)}catch{localStorage.removeItem(SUMMARY_STORAGE_KEY);return}
+  const exp=Date.parse(saved.expiresAt||'');
+  if(exp && exp<=Date.now()){
+    localStorage.removeItem(SUMMARY_STORAGE_KEY);
+    $('dataSummaryWrap')?.classList.remove('show');
+    if(summaryPollTimer)clearInterval(summaryPollTimer);
+    return;
+  }
+  try{
+    const r=await fetch('/api/report?summaryCheck='+Date.now(),{cache:'no-store'});
+    if(!r.ok){
+      localStorage.removeItem(SUMMARY_STORAGE_KEY);
+      $('dataSummaryWrap')?.classList.remove('show');
+      if(summaryPollTimer)clearInterval(summaryPollTimer);
+      return;
+    }
+    const x=await r.json();
+    if(!x?.ok || !x.report){
+      localStorage.removeItem(SUMMARY_STORAGE_KEY);
+      $('dataSummaryWrap')?.classList.remove('show');
+      if(summaryPollTimer)clearInterval(summaryPollTimer);
+      return;
+    }
+    const serverExp=x.report.expiresAt||saved.expiresAt;
+    if(serverExp && serverExp!==saved.expiresAt){saved.expiresAt=serverExp;localStorage.setItem(SUMMARY_STORAGE_KEY,JSON.stringify(saved));}
+  }catch(_){/* keep cached summary during a temporary network failure */}
+}
+async function restorePersistentSummary(){
+  const raw=localStorage.getItem(SUMMARY_STORAGE_KEY);
+  if(!raw)return;
+  let data;try{data=JSON.parse(raw)}catch{localStorage.removeItem(SUMMARY_STORAGE_KEY);return}
+  if(!applyStoredSummary(data))return;
+  await verifySummaryStillOnServer();
+  summaryPollTimer=setInterval(verifySummaryStillOnServer,15000);
+}
+
 $('detailedFile').addEventListener('change',async()=>{
   const file=$('detailedFile').files?.[0];
   if(!file)return;
@@ -1435,6 +1548,7 @@ async function generate(){
     const x=await xhrGenerate('/api/generate',payload,(loaded,totalBytes)=>{const pct=totalBytes?15+Math.round(loaded/totalBytes*45):20;const mb=(loaded/1024/1024).toFixed(2),tb=(totalBytes/1024/1024).toFixed(2);setDetailProgress(pct,'Uploading data…',`${mb} MB / ${tb} MB`,`Upload remaining: ${Math.max(0,totalBytes-loaded)/1024/1024>0?((totalBytes-loaded)/1024/1024).toFixed(2):'0.00'} MB`,{stepRead:'done',stepUpload:'active',stepGenerate:'pending',stepLoad:'pending'});});
     setDetailProgress(65,'Generating report…','Server processing','Please wait…',{stepRead:'done',stepUpload:'done',stepGenerate:'active',stepLoad:'pending'});
     input.value='';
+    saveSummaryState(x.expiresAt||'');
     const missing=(x.validation?.campUnmatched)||[];
     if(missing.length){
       setDetailProgress(85,'Report generated — mismatch found','Details ready','Master Data remains locked',{stepRead:'done',stepUpload:'done',stepGenerate:'done',stepLoad:'pending'});
@@ -1464,5 +1578,5 @@ $('masterPasswordCancel').onclick=()=>{$('masterPasswordModal').style.display='n
 $('masterPasswordSubmit').onclick=submitMasterPassword;
 $('masterPasswordInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitMasterPassword();if(e.key==='Escape')$('masterPasswordModal').style.display='none'});
 $('changeMasterBtn').onclick=unlockMaster;
-$('mvuDetailBtn').onclick=uploadMVUDetail;$('deleteAllMVUBtn').onclick=deleteAllMvu;$('refreshMVUBtn').onclick=loadMVUTable;$('districtFilter').onchange=loadMVUTable;$('mvuSearch').oninput=()=>{clearTimeout(window.mvuSearchTimer);window.mvuSearchTimer=setTimeout(loadMVUTable,250)};$('generateBtn').onclick=generate;loadStatus();
+$('mvuDetailBtn').onclick=uploadMVUDetail;$('deleteAllMVUBtn').onclick=deleteAllMvu;$('refreshMVUBtn').onclick=loadMVUTable;$('districtFilter').onchange=loadMVUTable;$('mvuSearch').oninput=()=>{clearTimeout(window.mvuSearchTimer);window.mvuSearchTimer=setTimeout(loadMVUTable,250)};$('generateBtn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();generate();});loadStatus();restorePersistentSummary();
 </script></body></html>
