@@ -67,12 +67,17 @@ async function requireMasterAccess(request,db){
 }
 
 async function unlockMaster(db,password){
-  const supplied=clean(password);
-  if(supplied!==MASTER_PASSWORD)return null;
-  const token=crypto.randomUUID();
-  const expires=Date.now()+60*60*1000;
+  // Accept both JSON string and numeric values, trim surrounding whitespace,
+  // and compare only on the server. Unlimited wrong attempts are allowed.
+  const supplied = clean(password);
+  if(supplied !== MASTER_PASSWORD) return null;
+
+  const token = crypto.randomUUID();
+  const expires = Date.now() + 60 * 60 * 1000;
+
   await setState(db,"master_access_token",token);
   await setState(db,"master_access_expires",String(expires));
+
   return {token,expires};
 }
 
@@ -211,15 +216,33 @@ async function bodyJson(request){const b=await request.json();if(!b||typeof b!==
 async function api(request,env){
   const db=env.DB,url=new URL(request.url),path=url.pathname;await ensureSchema(db);await cleanupExpired(db);
   if(path==="/api/master/unlock"&&request.method==="POST"){
-    try{const body=await bodyJson(request),result=await unlockMaster(db,body.password);if(!result)return json({ok:false,error:"Incorrect password."},403);return new Response(JSON.stringify({ok:true,expiresAt:new Date(result.expires).toISOString()}),{headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store","Set-Cookie":`mvu_master_access=${encodeURIComponent(result.token)}; HttpOnly; Secure; SameSite=Lax; Max-Age=3600; Path=/`}});}catch(e){return json({ok:false,error:e.message||"Unable to unlock Master Data."},400);}
+    try{
+      const body=await bodyJson(request);
+      const result=await unlockMaster(db,body?.password);
+      if(!result) return json({ok:false,error:"Incorrect password."},403);
+
+      const headers=new Headers();
+      headers.set("Content-Type","application/json; charset=utf-8");
+      headers.set("Cache-Control","no-store");
+      headers.set("Set-Cookie",`mvu_master_access=${encodeURIComponent(result.token)}; HttpOnly; Secure; SameSite=Lax; Max-Age=3600; Path=/`);
+
+      return new Response(JSON.stringify({
+        ok:true,
+        expiresAt:new Date(result.expires).toISOString()
+      }),{headers});
+    }catch(e){
+      return json({ok:false,error:e.message||"Unable to unlock Master Data."},400);
+    }
   }
   if(path==="/api/status"&&request.method==="GET"){
-    const masters=await loadMasters(db),latest=await getLatestReport(db);
-    const rows=Object.values(masters.mvuDetail),mvuDetailCount=rows.length;
-    const d=new Set(rows.map(x=>clean(x.district)).filter(Boolean)),b=new Set(rows.map(x=>clean(x.block)).filter(x=>x && !isDistrictHeadquarter(x)));
+    const latest=await getLatestReport(db);
+    const masterRows=(await db.prepare(`SELECT district,block,mvu_number FROM mvu_detail`).all()).results||[];
+    const mvuDetailCount=masterRows.length;
+    const d=new Set(masterRows.map(x=>clean(x.district)).filter(Boolean));
+    const b=new Set(masterRows.map(x=>clean(x.block)).filter(x=>x && !/^DIST\.?\s*HEAD\s*QUARTER$/i.test(x)));
     const available=(await getState(db,"mvu_detail_upload_available"))==="1";
     const logs=await db.prepare(`SELECT kind,filename,row_count,status,message,uploaded_at FROM upload_log ORDER BY id DESC LIMIT 8`).all();
-    return json({ok:true,mvuDetailCount,uniqueDistrictCount:d.size,uniqueBlockCount:b.size,totalBlockCount:b.size,masterUploadAvailable:available||mvuDetailCount===0,latest,logs:logs.results||[]});
+    return json({ok:true,mvuDetailCount,uniqueDistrictCount:d.size,totalBlockCount:b.size,uniqueBlockCount:b.size,masterUploadAvailable:available||mvuDetailCount===0,latest,logs:logs.results||[]});
   }
   if(path==="/api/upload/mvudetail"&&request.method==="POST"){if(!(await requireMasterAccess(request,db)))return json({ok:false,error:"Master Data is locked. Unlock with the correct password."},403);
     try{const body=await bodyJson(request);const mode=clean(body.mode)||"chunk";const count=await saveMVUDetailChunk(db,Array.isArray(body.rows)?body.rows:[],clean(body.filename)||"MVU_Detail.xlsx",mode);return json({ok:true,count,message:mode==="finish"||mode==="replace_finish"?"MVU Detail uploaded successfully. Old data was replaced automatically.":`MVU Detail batch saved: ${count} rows.`});}
