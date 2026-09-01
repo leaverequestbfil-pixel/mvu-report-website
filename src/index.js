@@ -93,6 +93,7 @@ async function processDetailed(db,rows,originalName,masters){
   // shown in the update/detail download, while never entering MVU totals.
   for(const r of hospitalSource){
     const d=dateKey(r.CreatedDateTime); if(!d)continue;
+    dates.add(d);
     const paravet=clean(r[paravetCol]);
     const ticketId=firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]);
     const sourceDistrict=firstField(r,["District","District Name"]);
@@ -141,9 +142,9 @@ async function processDetailed(db,rows,originalName,masters){
     return{received:c.Attend+c["Not Attend"]+c.Pending,attend:c.Attend,notAttend:c["Not Attend"],pending:c.Pending};
   }
   function dailyRemark(received,weekOff,date){
-    if(received!==0) return "";
     if(weekOff && date && norm(weekOff)===norm(weekdayName(date))) return "Week off";
-    return "Case not received";
+    if(received===0) return "Case not received";
+    return "";
   }
   const rowsOut=roster.map(x=>{
     const days={};
@@ -165,7 +166,7 @@ async function processDetailed(db,rows,originalName,masters){
   const report={generatedAt:now(),sourceFile:originalName,dates:sortedDates,firstDate,secondDate,firstDateDisplay:displayDate(firstDate),secondDateDisplay:displayDate(secondDate),districts,overall,validation:{sourceRows:rows.length,rowsAfterFilter:filtered.length,unmatchedParavetRows:unmatched.length,datesFound:sortedDates,campUnmatched:unmatched,hospitalAreaCounts,hospitalAreaRows:hospitalArea}};
   await db.prepare(`INSERT INTO generated_reports(generated_at,first_date,second_date,source_file,report_json) VALUES(?,?,?,?,?)`).bind(report.generatedAt,firstDate,secondDate,originalName,JSON.stringify(report)).run();
   await db.prepare(`DELETE FROM generated_reports WHERE id NOT IN (SELECT id FROM generated_reports ORDER BY id DESC LIMIT 30)`).run();
-  await logUpload(db,"detailed",originalName,rows.length,"success",`Generated report for ${displayDate(firstDate)}${secondDate?" and "+displayDate(secondDate):""}. Filtered ${rows.length-filtered.length} rows.`);
+  await logUpload(db,"detailed",originalName,rows.length,"success",`Generated report for ${sortedDates.map(displayDate).join(", ")}. Filtered ${rows.length-filtered.length} rows. Hospital Area tickets: ${hospitalArea.length}.`);
   return report;
 }
 
@@ -198,11 +199,12 @@ async function api(request,env){
     const report=await getLatestReport(db);
     if(!report)return new Response("No report generated yet.",{status:404});
     const date=clean(url.searchParams.get("date"));
-    const district=clean(url.searchParams.get("district"));
     if(!date)return new Response("Date is required.",{status:400});
     const source=Array.isArray(report.validation?.hospitalAreaRows)?report.validation.hospitalAreaRows:[];
-    const rows=source.filter(x=>x.date===date && (!district || district==="ALL" || clean(x.district)===district));
-    if(!rows.length)return new Response("No Hospital Area tickets found for the selected date/district.",{status:404});
+    // Hospital Area is intentionally OVERALL. District Filter must never affect
+    // this count or its date-wise download.
+    const rows=source.filter(x=>x.date===date);
+    if(!rows.length)return new Response("No Hospital Area tickets found for the selected date.",{status:404});
     const data=rows.map(x=>x.row||{});
     const headers=[...new Set(data.flatMap(x=>Object.keys(x)))];
     const ws=XLSX.utils.json_to_sheet(data,{header:headers});
@@ -211,8 +213,7 @@ async function api(request,env){
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,"Hospital Area Details");
     const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});
-    const suffix=district&&district!=="ALL"?`_${district.replace(/[^A-Za-z0-9_-]+/g,"_")}`:"";
-    return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="Hospital_Area_Details_${displayDate(date)}${suffix}.xlsx"`,"Cache-Control":"no-store"}});
+    return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="Hospital_Area_Details_${displayDate(date)}_Overall.xlsx"`,"Cache-Control":"no-store"}});
   }
   if(path==="/api/report/export"&&request.method==="GET"){
     const report=await getLatestReport(db);if(!report)return new Response("No report generated yet.",{status:404});
