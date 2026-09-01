@@ -6,6 +6,7 @@ const MASTER_PASSWORD = "8563";
 function now(){return new Date().toISOString();}
 function clean(v){return v===undefined||v===null?"":String(v).trim();}
 function norm(v){return clean(v).toUpperCase();}
+function num(v){const n=Number(v??0);return Number.isFinite(n)?n:0;}
 
 async function ensureSchema(db){
   await db.batch([
@@ -134,10 +135,9 @@ async function processDetailed(db,rows,originalName,masters){
   const afterTaEnquiry=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY");
   const filtered=afterTaEnquiry.filter(r=>!norm(r.CloseRemarks).includes("WT"));
   const hospitalSource=afterTaEnquiry;
-  const dates=new Set();
   for(const r of afterTaEnquiry){const d=dateKey(r.CreatedDateTime);if(d)dates.add(d);}
   const detailByParavet=new Map(Object.values(masters.mvuDetail).filter(r=>clean(r.paravet_id)).map(r=>[norm(r.paravet_id),r]));
-  const records=[],unmatched=[],hospitalArea=[];
+  const records=[],unmatched=[],hospitalArea=[],dates=new Set();
 
   // Collect Hospital Area rows separately so WT Hospital Area tickets are
   // shown in the update/detail download, while never entering MVU totals.
