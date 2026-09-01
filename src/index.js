@@ -117,11 +117,14 @@ async function processDetailed(db,rows,originalName,masters){
   if(!paravetCol)throw new Error("Detailed Report must contain ParavetID column.");
   const paravetNameCols=["Paravet Name","ParavetName","Paravet Name ","Employee Name","EmployeeName","Paravet"];
 
-  // Main MVU calculation removes TA / ENQUIRY / WT as before.
-  const filtered=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY"&&!norm(r.CloseRemarks).includes("WT"));
-  // Hospital Area detection happens after TA / ENQUIRY removal, but WT rows
-  // are retained here so WT Hospital Area tickets are available in details.
-  const hospitalSource=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY");
+  // FINAL HOSPITAL AREA RULE:
+  // 1) Remove TA and ENQUIRY first.
+  // 2) WT is excluded from normal MVU calculation.
+  // 3) After TA/ENQUIRY removal, any non-CAMP ParavetID is Hospital Area,
+  //    including WT + non-CAMP rows. CAMP + WT remains excluded from MVU.
+  const afterTaEnquiry=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY");
+  const filtered=afterTaEnquiry.filter(r=>!norm(r.CloseRemarks).includes("WT"));
+  const hospitalSource=afterTaEnquiry;
   const detailByParavet=new Map(Object.values(masters.mvuDetail).filter(r=>clean(r.paravet_id)).map(r=>[norm(r.paravet_id),r]));
   const records=[],unmatched=[],hospitalArea=[],dates=new Set();
 
@@ -143,6 +146,9 @@ async function processDetailed(db,rows,originalName,masters){
   for(const r of filtered){
     const d=dateKey(r.CreatedDateTime); if(!d)continue; dates.add(d);
     const paravet=clean(r[paravetCol]);
+    // Non-CAMP ParavetIDs are Hospital Area only and must NEVER enter
+    // normal MVU received/attend/pending calculations.
+    if(!norm(paravet).startsWith("CAMP"))continue;
     const m=detailByParavet.get(norm(paravet));
     if(!m){
       const sourceParavetName=firstField(r,paravetNameCols);
@@ -230,8 +236,9 @@ async function api(request,env){
     const district=clean(url.searchParams.get("district"));
     if(!date)return new Response("Date is required.",{status:400});
     const source=Array.isArray(report.validation?.hospitalAreaRows)?report.validation.hospitalAreaRows:[];
-    const rows=source.filter(x=>x.date===date && (!district || district==="ALL" || clean(x.district)===district));
-    if(!rows.length)return new Response("No Hospital Area tickets found for the selected date/district.",{status:404});
+    // Hospital Area is ALWAYS overall. District filter must never affect this export.
+    const rows=source.filter(x=>x.date===date);
+    if(!rows.length)return new Response("No Hospital Area tickets found for the selected date.",{status:404});
     const data=rows.map(x=>x.row||{});
     const headers=[...new Set(data.flatMap(x=>Object.keys(x)))];
     const ws=XLSX.utils.json_to_sheet(data,{header:headers});
