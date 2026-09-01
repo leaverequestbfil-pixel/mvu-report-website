@@ -55,6 +55,7 @@ body{overflow-x:auto;background-image:radial-gradient(circle at 12% 12%,var(--te
 <script>
 let reportData=null;
 const $=id=>document.getElementById(id);
+function dateDisplay(k){if(!k)return '';const parts=String(k).split('-');if(parts.length===3){const [y,m,d]=parts;return `${d}-${m}-${y}`;}return String(k);}
 function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
 function num(value){const n=Number(value??0);return Number.isFinite(n)?n:0;}
 function remark(value){const t=String(value??'').trim();if(!t)return '';const isWeekOff=/^week\s*off$/i.test(t);const isCase=/^case\s*not\s*received$/i.test(t);const cls=isWeekOff?'remark weekoff':(isCase?'remark case-not-received':'remark');return `<span class="${cls}">${esc(t)}</span>`;}
