@@ -134,9 +134,10 @@ async function processDetailed(db,rows,originalName,masters){
   const afterTaEnquiry=rows.filter(r=>norm(r.LevelType)!=="TA"&&norm(r.Type)!=="ENQUIRY");
   const filtered=afterTaEnquiry.filter(r=>!norm(r.CloseRemarks).includes("WT"));
   const hospitalSource=afterTaEnquiry;
+  const dates=new Set();
   for(const r of afterTaEnquiry){const d=dateKey(r.CreatedDateTime);if(d)dates.add(d);}
   const detailByParavet=new Map(Object.values(masters.mvuDetail).filter(r=>clean(r.paravet_id)).map(r=>[norm(r.paravet_id),r]));
-  const records=[],unmatched=[],hospitalArea=[],dates=new Set();
+  const records=[],unmatched=[],hospitalArea=[];
 
   // Collect Hospital Area rows separately so WT Hospital Area tickets are
   // shown in the update/detail download, while never entering MVU totals.
