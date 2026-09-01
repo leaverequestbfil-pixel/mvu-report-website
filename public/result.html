@@ -78,10 +78,10 @@ function renderHospitalUpdate(){
   if(!box||!reportData)return;
   const counts=Array.isArray(reportData.validation?.hospitalAreaCounts)?reportData.validation.hospitalAreaCounts:[];
   if(!counts.length){box.style.display="none";box.innerHTML="";return;}
-  // Hospital Area Update is ALWAYS OVERALL and independent of District Filter.
+  const district=$('districtFilter')?.value||'ALL';
   const rows=Array.isArray(reportData.validation?.hospitalAreaRows)?reportData.validation.hospitalAreaRows:[];
   const byDate={};
-  for(const x of rows)byDate[x.date]=(byDate[x.date]||0)+1;
+  for(const x of rows){if(district!=="ALL"&&String(x.district||"").trim()!==String(district).trim())continue;byDate[x.date]=(byDate[x.date]||0)+1;}
   const visible=counts.map(x=>({date:x.date,dateDisplay:x.dateDisplay,count:byDate[x.date]||0})).filter(x=>x.count>0);
   if(!visible.length){box.style.display="none";box.innerHTML="";return;}
   box.style.display="block";
