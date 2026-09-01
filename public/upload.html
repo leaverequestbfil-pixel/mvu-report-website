@@ -821,6 +821,166 @@ input[type="file"]:disabled{
 .master-panel{margin-top:12px}.master-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.master-actions input[type=file]{min-height:34px;padding:7px;border:1px solid #dfe5e8;border-radius:6px;background:#fff;font-size:10px}.big-btn.danger{background:#b42318!important;border-color:#b42318!important}.master-filter-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:14px 0 9px}.master-filter-row label{display:flex;flex-direction:column;gap:4px;font-size:9px;font-weight:700;color:#59636a}.master-filter-row select,.master-filter-row input{height:34px;min-width:190px;border:1px solid #cfd7dc;border-radius:6px;padding:0 9px;font-size:10px;background:#fff}.row-count{font-size:9px;color:#707980;font-weight:700;margin-left:auto;padding-bottom:9px}.table-wrap{width:100%;overflow:auto;border:1px solid #e0e5e8;border-radius:7px}.mvu-table{width:100%;border-collapse:collapse;min-width:880px;font-size:9px}.mvu-table th{background:#117a4b;color:#fff;text-align:left;padding:8px 7px;position:sticky;top:0}.mvu-table td{padding:7px;border-bottom:1px solid #edf0f2;white-space:nowrap}.mvu-table tr:nth-child(even){background:#fafcfc}.table-btn{border:0;border-radius:5px;padding:5px 8px;font-size:9px;font-weight:700;cursor:pointer;margin-right:3px}.table-btn.edit{background:#e8f1ff;color:#175ea8}.table-btn.del{background:#fdeaea;color:#b42318}.empty-cell{text-align:center;color:#89939a;padding:20px!important}.progress-wrap{margin-top:9px}.progress-label{display:flex;justify-content:space-between;font-size:9px;font-weight:700}.progress-track{height:8px;background:#e8ecef;border-radius:10px;overflow:hidden;margin-top:5px}.progress-bar{height:100%;width:0;background:#198754;transition:width .15s}.mvu-modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:1000;padding:15px}.mvu-modal-card{width:min(620px,96vw);background:#fff;border-radius:10px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.2)}.mvu-modal-card h3{margin:0 0 14px;font-size:15px}.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.edit-grid label{font-size:9px;font-weight:700;color:#59636a;display:flex;flex-direction:column;gap:4px}.edit-grid input{height:34px;border:1px solid #cfd7dc;border-radius:6px;padding:0 9px;font-size:10px}.modal-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:15px}
 #masterArea{display:none}#masterArea.show{display:block}
 
+
+/* =========================================================
+   FINAL CENTERED UPLOAD DASHBOARD
+========================================================= */
+body{
+  background:
+    radial-gradient(circle at 12% 8%,rgba(25,135,84,.06),transparent 28%),
+    radial-gradient(circle at 88% 14%,rgba(25,135,84,.05),transparent 26%),
+    #f3f7f5;
+}
+.topbar{
+  width:min(948px,calc(100% - 24px));
+  margin:10px auto 0;
+  min-height:82px;
+  border-radius:9px;
+  position:relative;
+  justify-content:center;
+  background:linear-gradient(135deg,#0f9a61,#087348);
+  box-shadow:0 5px 18px rgba(24,64,52,.14);
+}
+.top-brand{justify-content:center;text-align:center}
+.top-brand h1{font-size:21px}
+.brand-icon{
+  width:44px;height:44px;border-radius:12px;
+  background:rgba(255,255,255,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 5px 12px rgba(0,0,0,.12);
+  font-size:27px;
+}
+.topbar nav{
+  position:absolute;
+  left:calc(100% + 16px);
+  top:0;
+  width:190px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:8px;
+  padding:12px;
+  background:#fff;
+  border:1px solid #d7e3de;
+  border-radius:12px;
+  box-shadow:0 8px 24px rgba(24,64,52,.12);
+  z-index:100;
+}
+.topbar nav:before{
+  content:'Report Controls';
+  display:block;
+  color:#176d4b;
+  font-size:12px;
+  font-weight:900;
+  padding:0 3px 4px;
+}
+.topbar nav a,.topbar nav button{
+  width:100%;height:40px;
+  background:#f7fbf9;color:#087348;
+  border:1px solid #cfe0d8;border-radius:8px;
+  font-size:10px;font-weight:800;
+}
+.topbar nav .nav-danger{background:#dc3545;color:#fff;border-color:#dc3545}
+.content{
+  width:min(948px,calc(100% - 24px));
+  padding:14px 0 30px;
+  margin:0 auto;
+}
+.upload-grid{max-width:760px;margin:0 auto}
+.primary-panel{
+  padding:24px;border-radius:12px;
+  box-shadow:0 8px 25px rgba(24,64,52,.08);
+}
+.panel-title{justify-content:center;text-align:center}
+.panel-title .step{display:none}
+.panel-title h2{font-size:20px;color:#176d4b}
+.primary-panel input[type=file]{
+  min-height:110px;border:2px dashed #4cae7a;
+  background:#f7fcf9;text-align:center;
+  padding:36px 12px;font-size:11px;
+}
+
+/* Data summary shown after Detailed Report is selected */
+.data-summary-wrap{
+  max-width:760px;
+  margin:12px auto 0;
+  display:none;
+}
+.data-summary-wrap.show{display:block}
+.data-summary-title{
+  text-align:center;
+  font-size:10px;
+  font-weight:900;
+  color:#176d4b;
+  margin-bottom:7px;
+}
+.data-summary{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:1px;
+  background:#dce7e2;
+  border:1px solid #dce7e2;
+  border-radius:9px;
+  overflow:hidden;
+  box-shadow:0 3px 12px rgba(24,64,52,.06);
+}
+.data-summary-card{
+  min-height:68px;
+  background:#fff;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:8px 5px;
+}
+.data-summary-card .ds-icon{font-size:15px;line-height:1;margin-bottom:4px}
+.data-summary-card .ds-label{
+  font-size:8px;
+  font-weight:800;
+  color:#707980;
+  line-height:1.15;
+}
+.data-summary-card strong{
+  margin-top:3px;
+  font-size:15px;
+  line-height:1;
+  color:#117a4b;
+}
+.data-summary-card.removed strong{color:#e58a19}
+.data-summary-card.wt strong{color:#8b35b8}
+.data-summary-card.hospital strong{color:#c62828}
+.data-summary-card.valid strong{color:#117a4b}
+.summary-status{
+  margin-top:6px;
+  text-align:center;
+  font-size:8px;
+  color:#718080;
+  font-weight:700;
+}
+.generate-main{
+  width:100%;height:44px;font-size:12px;border-radius:9px;
+  box-shadow:0 5px 0 #075e3d,0 9px 15px rgba(8,115,72,.16);
+}
+@media(max-width:1180px){
+  .topbar nav{left:auto;right:12px;top:calc(100% + 8px)}
+}
+@media(max-width:760px){
+  .topbar{width:calc(100% - 16px);margin:8px auto 0}
+  .topbar nav{
+    position:static;
+    width:min(94%,420px);
+    margin:8px auto 0;
+  }
+  .content{width:calc(100% - 16px);padding-top:10px}
+  .data-summary{grid-template-columns:repeat(2,1fr)}
+  .data-summary-card:last-child{grid-column:1/-1}
+}
+@media(max-width:480px){
+  .data-summary{grid-template-columns:1fr 1fr}
+  .data-summary-card:last-child{grid-column:auto}
+}
+
 /* =========================================================
    DYNAMIC UPLOAD DASHBOARD OVERRIDES
 ========================================================= */
@@ -852,14 +1012,7 @@ input[type="file"]:disabled{
 
   <div class="top-brand">
 
-    <div class="brand-icon" aria-label="MVU Report logo">
-      <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
-        <rect x="7" y="20" width="50" height="30" rx="7" fill="none" stroke="currentColor" stroke-width="4"/>
-        <path d="M14 20l7-10h18l11 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
-        <path d="M29 28v14M22 35h14" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-        <circle cx="18" cy="52" r="5" fill="currentColor"/><circle cx="46" cy="52" r="5" fill="currentColor"/>
-      </svg>
-    </div>
+    <div class="brand-icon" aria-label="MVU Report logo">🚑</div>
 
     <div>
 
@@ -1029,6 +1182,38 @@ input[type="file"]:disabled{
 
 </section>
 
+<section id="dataSummaryWrap" class="data-summary-wrap">
+  <div class="data-summary-title">DATA SUMMARY (After Upload)</div>
+  <div class="data-summary">
+    <div class="data-summary-card">
+      <div class="ds-icon">📄</div>
+      <div class="ds-label">Total Rows</div>
+      <strong id="summaryTotalRows">0</strong>
+    </div>
+    <div class="data-summary-card valid">
+      <div class="ds-icon">✓</div>
+      <div class="ds-label">Valid Rows</div>
+      <strong id="summaryValidRows">0</strong>
+    </div>
+    <div class="data-summary-card removed">
+      <div class="ds-icon">📋</div>
+      <div class="ds-label">Removed (TA / ENQUIRY)</div>
+      <strong id="summaryRemovedRows">0</strong>
+    </div>
+    <div class="data-summary-card wt">
+      <div class="ds-icon">WT</div>
+      <div class="ds-label">WT Rows</div>
+      <strong id="summaryWtRows">0</strong>
+    </div>
+    <div class="data-summary-card hospital">
+      <div class="ds-icon">🏥</div>
+      <div class="ds-label">Hospital Area</div>
+      <strong id="summaryHospitalRows">0</strong>
+    </div>
+  </div>
+  <div id="summaryStatus" class="summary-status">Select a Detailed Report to calculate the summary.</div>
+</section>
+
 
 
 <!-- =======================================================
@@ -1172,6 +1357,68 @@ function setDetailProgress(pct,stage,done='',remaining='',states={}){
   ['stepRead','stepUpload','stepGenerate','stepLoad'].forEach(id=>{const e=$(id);if(!e)return;e.className=states[id]||'pending';});
 }
 function xhrGenerate(url,payload,onProgress){return new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest();xhr.open('POST',url,true);xhr.setRequestHeader('Content-Type','application/json');xhr.responseType='text';xhr.upload.onprogress=e=>{if(e.lengthComputable)onProgress(e.loaded,e.total)};xhr.onload=()=>{const text=xhr.responseText||'';let data=null;try{data=JSON.parse(text)}catch(_){reject(new Error('Server returned non-JSON response for Generate Report.'));return;}if(xhr.status<200||xhr.status>=300||!data.ok){reject(new Error(data?.error||'Report generation failed.'));return;}resolve(data)};xhr.onerror=()=>reject(new Error('Network error while generating report.'));xhr.ontimeout=()=>reject(new Error('Generate Report request timed out.'));xhr.timeout=0;xhr.send(JSON.stringify(payload));});}
+
+function summaryFirst(row,names){
+  const keys=Object.keys(row||{});
+  for(const name of names){
+    if(Object.prototype.hasOwnProperty.call(row,name)) return String(row[name]??'').trim();
+  }
+  const wanted=names.map(v=>String(v).toLowerCase().replace(/[._\s-]+/g,''));
+  const k=keys.find(x=>wanted.includes(String(x).toLowerCase().replace(/[._\s-]+/g,'')));
+  return k?String(row[k]??'').trim():'';
+}
+function updateDataSummary(rows){
+  const wrap=$('dataSummaryWrap');
+  if(!wrap)return;
+  const total=Math.max(0,(rows||[]).length-1);
+  const header=rows?.[0]||[];
+  const objects=[];
+  for(let i=1;i<rows.length;i++){
+    const o={};
+    header.forEach((h,j)=>o[String(h??'').trim()]=rows[i][j]);
+    objects.push(o);
+  }
+  let ta=0,enquiry=0,wt=0,hospital=0;
+  for(const r of objects){
+    const level=summaryFirst(r,['LevelType']);
+    const type=summaryFirst(r,['Type']);
+    const close=summaryFirst(r,['CloseRemarks']);
+    const paravet=summaryFirst(r,['ParavetID','Paravet ID','Paravet Id','Employee ID','EmployeeID']);
+    const isTA=level.toUpperCase()==='TA';
+    const isEnquiry=type.toUpperCase()==='ENQUIRY';
+    const isWT=close.toUpperCase().includes('WT');
+    if(isTA||isEnquiry){ta+=isTA?1:0;enquiry+=isEnquiry?1:0;}
+    if(isWT)wt++;
+    if(!isTA&&!isEnquiry && !paravet.toUpperCase().startsWith('CAMP')) hospital++;
+  }
+  const removed=ta+enquiry;
+  const valid=Math.max(0,total-removed-wt);
+  const set=(id,v)=>{const e=$(id);if(e)e.textContent=Number(v).toLocaleString()};
+  set('summaryTotalRows',total);
+  set('summaryValidRows',valid);
+  set('summaryRemovedRows',removed);
+  set('summaryWtRows',wt);
+  set('summaryHospitalRows',hospital);
+  wrap.classList.add('show');
+  const status=$('summaryStatus');
+  if(status){
+    status.textContent=`TA: ${ta.toLocaleString()} • ENQUIRY: ${enquiry.toLocaleString()} • WT is excluded from normal MVU calculation • Hospital Area is overall`;
+  }
+}
+$('detailedFile').addEventListener('change',async()=>{
+  const file=$('detailedFile').files?.[0];
+  if(!file)return;
+  try{
+    $('summaryStatus').textContent='Reading Detailed Report for live summary…';
+    const rows=await rowsFromSheet(file);
+    updateDataSummary(rows);
+    show(`Detailed Report loaded: ${Math.max(0,rows.length-1).toLocaleString()} rows.`,'success');
+  }catch(e){
+    $('dataSummaryWrap')?.classList.remove('show');
+    show('Unable to calculate Data Summary: '+e.message,'error');
+  }
+});
+
 async function generate(){
   const input=$('detailedFile');
   if(!state||!Number(state.mvuDetailCount))return show('Please upload MVU Details first.','error');
