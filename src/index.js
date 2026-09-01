@@ -253,7 +253,8 @@ async function api(request,env){
     catch(e){console.error("MVU Detail upload error:",e);return json({ok:false,error:e.message||"MVU Detail upload failed."},400);}
   }
   if(path==="/api/generate"&&request.method==="POST"){
-    try{const masters=await loadMasters(db);if(!Object.keys(masters.mvuDetail).length)throw new Error("Please upload MVU Detail master first.");const body=await bodyJson(request);const report=await processDetailed(db,body.rows,clean(body.filename)||"DetailedReport.xlsx",masters);return json({ok:true,report});}
+    try{const masters=await loadMasters(db);if(!Object.keys(masters.mvuDetail).length)throw new Error("Please upload MVU Detail master first.");const body=await bodyJson(request);const report=await processDetailed(db,body.rows,clean(body.filename)||"DetailedReport.xlsx",masters);// Keep Generate response small. Full report is stored in D1 and fetched by result.html.
+      return json({ok:true,unmatched:report.validation?.campUnmatched||[],generatedAt:report.generatedAt});}
     catch(e){
       try{await logUpload(db,"detailed","",0,"error",e?.message||"Report generation failed.");}
       catch(logErr){console.error("Generate error log failed:",logErr);}
