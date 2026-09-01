@@ -12,3 +12,6 @@ run_worker_first = ["/api/*"]
 binding = "DB"
 database_name = "mvu-report-db"
 database_id = "5e13ef1e-30b1-4ad9-b2c4-77efc1867654"
+
+[triggers]
+crons = ["*/15 * * * *"]
