@@ -24,6 +24,49 @@ async function setState(db,key,value){
   await db.prepare(`INSERT INTO app_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).bind(key,String(value)).run();
 }
 
+const MASTER_PASSWORD = "8563";
+const MASTER_SESSION_SECRET = "MVU_MASTER_SESSION_8563_V1";
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+async function hmacHex(message){
+  const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(MASTER_SESSION_SECRET),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+  const sig=await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(message));
+  return [...new Uint8Array(sig)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+async function makeMasterToken(){
+  const exp=Date.now()+ONE_HOUR_MS,nonce=crypto.randomUUID();
+  const payload=`${exp}.${nonce}`,sig=await hmacHex(payload);
+  return `${payload}.${sig}`;
+}
+
+async function isMasterUnlocked(request){
+  const cookie=clean(request.headers.get("Cookie"));
+  const m=cookie.match(/(?:^|;\s*)mvu_master_session=([^;]+)/);
+  if(!m)return false;
+  const parts=decodeURIComponent(m[1]).split(".");
+  if(parts.length!==3)return false;
+  const [exp,nonce,sig]=parts;
+  if(!/^\d+$/.test(exp)||Number(exp)<Date.now()||!nonce||!sig)return false;
+  const expected=await hmacHex(`${exp}.${nonce}`);
+  if(expected.length!==sig.length)return false;
+  let diff=0;for(let i=0;i<sig.length;i++)diff|=sig.charCodeAt(i)^expected.charCodeAt(i);
+  return diff===0;
+}
+
+async function requireMaster(request){
+  if(await isMasterUnlocked(request))return null;
+  return json({ok:false,error:"Master Data is locked. Enter the password first."},403);
+}
+
+async function cleanupExpiredData(db){
+  const cutoff=new Date(Date.now()-ONE_HOUR_MS).toISOString();
+  await db.batch([
+    db.prepare(`DELETE FROM generated_reports WHERE generated_at < ?`).bind(cutoff),
+    db.prepare(`DELETE FROM upload_log WHERE uploaded_at < ?`).bind(cutoff)
+  ]);
+}
+
 
 async function loadMasters(db){
   await ensureSchema(db);
@@ -109,27 +152,8 @@ async function processDetailed(db,rows,originalName,masters){
     const paravet=clean(r[paravetCol]);
     const m=detailByParavet.get(norm(paravet));
     if(!m){
-      // IMPORTANT: A ParavetID may exist in the Detailed Report but not in
-      // the server MVU Detail master. In that case use the Detailed Report
-      // row itself for the mismatch details. Never use variables from the
-      // Hospital Area loop here (they belong to a different row/scope).
-      const sourceTicketId=firstField(r,["TicketID","Ticket Id","Ticket ID","Ticket Id ","Ticket Number","TicketNo"]);
-      const sourceDistrict=firstField(r,["District","District Name"]);
-      const sourceBlock=firstField(r,["Block","Block Name"]);
-      const sourceMvu=firstField(r,["MVU Number","MVUNumber","MVU No","MVU No.","Vehicle Number","Vehicle No","Vehicle No."]);
-      const sourceParavetName=firstField(r,paravetNameCols);
-      if(paravet){
-        unmatched.push({
-          paravetID:paravet,
-          paravetName:sourceParavetName,
-          date:d,
-          ticketId:sourceTicketId,
-          district:sourceDistrict,
-          block:sourceBlock,
-          mvuNumber:sourceMvu,
-          isCamp:norm(paravet).startsWith("CAMP")
-        });
-      }
+      const isCamp=norm(paravet).startsWith("CAMP");
+      if(isCamp)unmatched.push({paravetID:paravet,paravetName:sourceParavetName,date:d,ticketId,district:sourceDistrict,block:sourceBlock,mvuNumber:sourceMvu});
       continue;
     }
     records.push({date:d,paravetID:paravet,vehicle:m.mvu_number,district:m.district,block:m.block,audio:ticketAudio(r)});
@@ -170,7 +194,6 @@ async function processDetailed(db,rows,originalName,masters){
   const hospitalAreaCounts=Object.entries(hospitalArea.reduce((m,x)=>(m[x.date]=(m[x.date]||0)+1,m),{})).sort(([a],[b])=>a.localeCompare(b)).map(([date,count])=>({date,count,dateDisplay:displayDate(date)}));
   const report={generatedAt:now(),sourceFile:originalName,firstDate,secondDate,firstDateDisplay:displayDate(firstDate),secondDateDisplay:displayDate(secondDate),districts,overall,validation:{sourceRows:rows.length,rowsAfterFilter:filtered.length,unmatchedParavetRows:unmatched.length,datesFound:sortedDates,campUnmatched:unmatched,hospitalAreaCounts,hospitalAreaRows:hospitalArea}};
   await db.prepare(`INSERT INTO generated_reports(generated_at,first_date,second_date,source_file,report_json) VALUES(?,?,?,?,?)`).bind(report.generatedAt,firstDate,secondDate,originalName,JSON.stringify(report)).run();
-  await db.prepare(`DELETE FROM generated_reports WHERE id NOT IN (SELECT id FROM generated_reports ORDER BY id DESC LIMIT 30)`).run();
   await logUpload(db,"detailed",originalName,rows.length,"success",`Generated report for ${displayDate(firstDate)}${secondDate?" and "+displayDate(secondDate):""}. Filtered ${rows.length-filtered.length} rows.`);
   return report;
 }
@@ -180,7 +203,14 @@ function json(data,status=200){return new Response(JSON.stringify(data),{status,
 async function bodyJson(request){const b=await request.json();if(!b||typeof b!=="object")throw new Error("JSON body is required.");return b;}
 
 async function api(request,env){
-  const db=env.DB,url=new URL(request.url),path=url.pathname;await ensureSchema(db);
+  const db=env.DB,url=new URL(request.url),path=url.pathname;await ensureSchema(db);await cleanupExpiredData(db);
+  if(path==="/api/master/unlock"&&request.method==="POST"){
+    try{
+      const body=await bodyJson(request);if(clean(body.password)!==MASTER_PASSWORD)return json({ok:false,error:"Wrong password. Try again."},401);
+      const token=await makeMasterToken();
+      return new Response(JSON.stringify({ok:true}),{headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store","Set-Cookie":`mvu_master_session=${encodeURIComponent(token)}; Max-Age=3600; Path=/; HttpOnly; SameSite=Lax`}});
+    }catch(e){return json({ok:false,error:e.message||"Unable to unlock Master Data."},400);}
+  }
   if(path==="/api/status"&&request.method==="GET"){
     const masters=await loadMasters(db),latest=await getLatestReport(db);
     const rows=Object.values(masters.mvuDetail),mvuDetailCount=rows.length;
@@ -189,6 +219,8 @@ async function api(request,env){
     const logs=await db.prepare(`SELECT kind,filename,row_count,status,message,uploaded_at FROM upload_log ORDER BY id DESC LIMIT 8`).all();
     return json({ok:true,mvuDetailCount,uniqueDistrictCount:d.size,uniqueBlockCount:b.size,masterUploadAvailable:available||mvuDetailCount===0,latest,logs:logs.results||[]});
   }
+  const masterProtected=["/api/upload/mvudetail","/api/mvudetail/template","/api/mvudetail/delete","/api/mvudetail/list","/api/mvudetail/download","/api/mvudetail/edit","/api/mvudetail/delete-one","/api/mvudetail/delete-all"];
+  if(masterProtected.includes(path)){const lock=await requireMaster(request);if(lock)return lock;}
   if(path==="/api/upload/mvudetail"&&request.method==="POST"){
     try{const body=await bodyJson(request);const mode=clean(body.mode)||"chunk";const count=await saveMVUDetailChunk(db,Array.isArray(body.rows)?body.rows:[],clean(body.filename)||"MVU_Detail.xlsx",mode);return json({ok:true,count,message:mode==="finish"||mode==="replace_finish"?"MVU Detail uploaded successfully. Old data was replaced automatically.":`MVU Detail batch saved: ${count} rows.`});}
     catch(e){console.error("MVU Detail upload error:",e);return json({ok:false,error:e.message||"MVU Detail upload failed."},400);}
@@ -273,4 +305,7 @@ async function api(request,env){
   return json({ok:false,error:`API route not found: ${request.method} ${path}`},404);
 }
 
-export default {async fetch(request,env){const url=new URL(request.url);if(url.pathname.startsWith("/api/")){try{return await api(request,env);}catch(e){console.error(e);return json({ok:false,error:e?.message||"Server error"},500);}}return env.ASSETS.fetch(request);}};
+export default {
+  async fetch(request,env){const url=new URL(request.url);if(url.pathname.startsWith("/api/")){try{return await api(request,env);}catch(e){console.error(e);return json({ok:false,error:e?.message||"Server error"},500);}}return env.ASSETS.fetch(request);},
+  async scheduled(event,env,ctx){ctx.waitUntil((async()=>{try{await ensureSchema(env.DB);await cleanupExpiredData(env.DB);}catch(e){console.error("Scheduled cleanup failed:",e);}})());}
+};
