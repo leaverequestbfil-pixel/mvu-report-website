@@ -9,6 +9,7 @@
 <title>MVU Wise Daily Report</title>
 
 <link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚑</text></svg>">
 
 <style>
 
@@ -1242,7 +1243,8 @@ body{
     <button
       type="button"
       class="big-btn generate-main"
-      id="generateBtn">
+      id="generateBtn"
+      disabled>
 
       ⚡ Generate Report →
 
@@ -1423,7 +1425,7 @@ body{
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let state=null,mvuRows=[];
+const $=id=>document.getElementById(id);let state=null,mvuRows=[];let detailedFileReady=false;
 function show(msg,type='info'){const n=$('notice');n.textContent=msg;n.className='notice '+type;}
 async function loadStatus(){try{const r=await fetch('/api/status',{cache:'no-store'});const x=await r.json();state=x;const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};set('districtCount',Number(x.uniqueDistrictCount||0).toLocaleString());set('blockCount',Number((x.totalBlockCount??x.uniqueBlockCount)||0).toLocaleString());}catch(e){show('Unable to read server status: '+e.message,'error');}}
 function rowsFromSheet(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]];resolve(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));}catch(err){reject(err)}};reader.onerror=()=>reject(reader.error||new Error('Unable to read file.'));reader.readAsArrayBuffer(file);});}
@@ -1573,16 +1575,22 @@ $('detailedFile').addEventListener('change',async()=>{
   try{
     $('summaryStatus').textContent='Reading Detailed Report for live summary…';
     const rows=await rowsFromSheet(file);
+    if(rows.length<2)throw new Error('Detailed Report file is empty.');
     updateDataSummary(rows);
-    show(`Detailed Report loaded: ${Math.max(0,rows.length-1).toLocaleString()} rows.`,'success');
+    detailedFileReady=true;
+    const gb=$('generateBtn');if(gb)gb.disabled=false;
+    show(`✅ Report attached successfully • ${Math.max(0,rows.length-1).toLocaleString()} rows ready. Click Generate Report.`,'success');
   }catch(e){
+    detailedFileReady=false;
+    const gb=$('generateBtn');if(gb)gb.disabled=true;
     $('dataSummaryWrap')?.classList.remove('show');
-    show('Unable to calculate Data Summary: '+e.message,'error');
+    show('Unable to attach Detailed Report: '+e.message,'error');
   }
 });
 
 async function generate(){
   const input=$('detailedFile');
+  if(!detailedFileReady || !input.files[0])return show('Please attach a valid Detailed Report first.','error');
   // Do not block Generate based on stale client-side status.
   // The server is the source of truth and will return a clear error if
   // MVU Master Data is actually missing. This prevents a stale `state`
@@ -1599,7 +1607,9 @@ async function generate(){
     setDetailProgress(15,'Uploading data…','0 rows sent',`Total rows: ${total.toLocaleString()}`,{stepRead:'done',stepUpload:'active',stepGenerate:'pending',stepLoad:'pending'});
     const x=await xhrGenerate('/api/generate',payload,(loaded,totalBytes)=>{const pct=totalBytes?15+Math.round(loaded/totalBytes*45):20;const mb=(loaded/1024/1024).toFixed(2),tb=(totalBytes/1024/1024).toFixed(2);setDetailProgress(pct,'Uploading data…',`${mb} MB / ${tb} MB`,`Upload remaining: ${Math.max(0,totalBytes-loaded)/1024/1024>0?((totalBytes-loaded)/1024/1024).toFixed(2):'0.00'} MB`,{stepRead:'done',stepUpload:'active',stepGenerate:'pending',stepLoad:'pending'});});
     setDetailProgress(65,'Generating report…','Server processing','Please wait…',{stepRead:'done',stepUpload:'done',stepGenerate:'active',stepLoad:'pending'});
+    detailedFileReady=false;
     input.value='';
+    if($('generateBtn'))$('generateBtn').disabled=true;
     saveSummaryState(x.expiresAt||'');
     const missing=(x.validation?.campUnmatched)||[];
     if(missing.length){
