@@ -7,6 +7,22 @@ function now(){return new Date().toISOString();}
 function clean(v){return v===undefined||v===null?"":String(v).trim();}
 function norm(v){return clean(v).toUpperCase();}
 function num(value){const n=Number(value??0);return Number.isFinite(n)?n:0;}
+// Auto-fit exported Excel columns to their header/content so values do not overlap.
+function autoFitColumns(ws, minWidth=10, maxWidth=48){
+  if(!ws||!ws["!ref"])return;
+  const range=XLSX.utils.decode_range(ws["!ref"]), widths=[];
+  for(let c=range.s.c;c<=range.e.c;c++){
+    let longest=0;
+    for(let r=range.s.r;r<=range.e.r;r++){
+      const cell=ws[XLSX.utils.encode_cell({r,c})];
+      if(!cell||cell.v===undefined||cell.v===null)continue;
+      const text=String(cell.w??cell.v).split(/\r?\n/).reduce((m,line)=>Math.max(m,line.length),0);
+      longest=Math.max(longest,text);
+    }
+    widths.push({wch:Math.max(minWidth,Math.min(maxWidth,longest+2))});
+  }
+  ws["!cols"]=widths;
+}
 
 async function ensureSchema(db){
   await db.batch([
@@ -285,6 +301,7 @@ async function api(request,env){
     const data=rows.map(x=>x.row||{});
     const headers=[...new Set(data.flatMap(x=>Object.keys(x)))];
     const ws=XLSX.utils.json_to_sheet(data,{header:headers});
+    autoFitColumns(ws);
     ws["!autofilter"]={ref:ws["!ref"]};
     ws["!freeze"]={xSplit:0,ySplit:1};
     const wb=XLSX.utils.book_new();
@@ -310,14 +327,14 @@ async function api(request,env){
       for(const d of districts)d.rows.forEach((r,i)=>{const o={District:i===0?d.district:"",Block:r.block,"Vehicle No.":r.vehicle};for(let j=0;j<dates.length;j++){const dd=dates[j],x=r.days?.[dd]||{};o[`${displayDate(dd)} Total Received`]=num(x.received);o[`${displayDate(dd)} Total Attend`]=num(x.attend);if(dates.length===1||j>0){o[`${displayDate(dd)} Not Attend`]=num(x.notAttend);o[`${displayDate(dd)} Pending`]=num(x.pending);o[`${displayDate(dd)} Remark`]=x.remark||"";}}out.push(o);});
       const g={District:"OVERALL GRAND TOTAL",Block:"","Vehicle No.":""};for(let j=0;j<dates.length;j++){const dd=dates[j],t=report.overall.byDate?.[dd]||{received:0,attend:0,notAttend:0,pending:0};g[`${displayDate(dd)} Total Received`]=t.received;g[`${displayDate(dd)} Total Attend`]=t.attend;if(dates.length===1||j>0){g[`${displayDate(dd)} Not Attend`]=t.notAttend;g[`${displayDate(dd)} Pending`]=t.pending;g[`${displayDate(dd)} Remark`]="";}}out.push(g);
     }
-    const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(out);XLSX.utils.book_append_sheet(wb,ws,"MVU Daily Report");const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+    const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(out);autoFitColumns(ws);XLSX.utils.book_append_sheet(wb,ws,"MVU Daily Report");const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});
     const name=selectedDate?`MVU_Daily_Report_${displayDate(selectedDate)}.xlsx`:`MVU_Daily_Report_${displayDate(dates[0])}_to_${displayDate(dates[dates.length-1])}.xlsx`;
     return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":`attachment; filename="${name}"` ,"Cache-Control":"no-store"}});
   }
   if(path==="/api/mvudetail/template"&&request.method==="GET"){if(!(await requireMasterAccess(request,db)))return json({ok:false,error:"Master Data is locked. Unlock with the correct password."},403);
     const rows=[{District:"",Block:"", "MVU Number":"", "ParavetID":"", "Paravet Name":"", "Week Off":""}];
     const ws=XLSX.utils.json_to_sheet(rows,{header:["District","Block","MVU Number","ParavetID","Paravet Name","Week Off"]});
-    ws["!cols"]=[{wch:24},{wch:24},{wch:20},{wch:18},{wch:24},{wch:16}];
+    autoFitColumns(ws);
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"MVU Detail");
     const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});
     return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":"attachment; filename=\"MVU_Detail_Template.xlsx\""}});
@@ -326,7 +343,7 @@ async function api(request,env){
     const rows=await db.prepare(`SELECT district,block,mvu_number,paravet_id,paravet_name,week_off FROM mvu_detail ORDER BY district,block,mvu_number`).all();
     const data=(rows.results||[]).map(r=>({District:r.district||"",Block:r.block||"","MVU Number":r.mvu_number||"",ParavetID:r.paravet_id||"","Paravet Name":r.paravet_name||"","Week Off":r.week_off||""}));
     const ws=XLSX.utils.json_to_sheet(data,{header:["District","Block","MVU Number","ParavetID","Paravet Name","Week Off"]});
-    ws["!cols"]=[{wch:24},{wch:24},{wch:20},{wch:18},{wch:16}];
+    autoFitColumns(ws);
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"MVU Detail");
     const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});
     await db.prepare(`DELETE FROM mvu_detail`).run();
@@ -344,7 +361,7 @@ async function api(request,env){
   if(path==="/api/mvudetail/download"&&request.method==="GET"){if(!(await requireMasterAccess(request,db)))return json({ok:false,error:"Master Data is locked. Unlock with the correct password."},403);
     const r=await db.prepare(`SELECT district,block,mvu_number,paravet_id,paravet_name,week_off FROM mvu_detail ORDER BY district,block,mvu_number`).all();
     const data=(r.results||[]).map(x=>({District:x.district||"",Block:x.block||"","MVU Number":x.mvu_number||"",ParavetID:x.paravet_id||"","Paravet Name":x.paravet_name||"","Week Off":x.week_off||""}));
-    const ws=XLSX.utils.json_to_sheet(data,{header:["District","Block","MVU Number","ParavetID","Paravet Name","Week Off"]}); const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"MVU Details"); const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+    const ws=XLSX.utils.json_to_sheet(data,{header:["District","Block","MVU Number","ParavetID","Paravet Name","Week Off"]}); autoFitColumns(ws); const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"MVU Details"); const bytes=XLSX.write(wb,{type:"array",bookType:"xlsx"});
     return new Response(bytes,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":"attachment; filename=MVU_Details_Server_Data.xlsx","Cache-Control":"no-store"}});
   }
   if(path==="/api/mvudetail/edit"&&request.method==="POST"){if(!(await requireMasterAccess(request,db)))return json({ok:false,error:"Master Data is locked. Unlock with the correct password."},403);
