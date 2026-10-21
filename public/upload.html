@@ -1328,6 +1328,7 @@ body{
       <input id="mvuDetailFile" type="file" accept=".xlsx,.xls">
       <button type="button" class="big-btn" id="mvuDetailBtn">📤 Bulk Upload</button>
       <button type="button" class="big-btn danger" id="deleteAllMVUBtn">🗑️ All Delete</button>
+      <button type="button" class="big-btn danger" id="resetServerDataBtn">⚠️ Reset Server Data (Keep Master)</button>
     </div>
 
     <div id="mvuProgressWrap" class="progress-wrap" style="display:none;">
@@ -1439,6 +1440,21 @@ async function saveMvuEdit(){try{const body={oldMvuNumber:$('editOldMvu').value,
 $('saveMvuEdit').onclick=saveMvuEdit;
 async function deleteOneMvu(i){const r=mvuRows[i];if(!r||!confirm(`Delete MVU ${r.mvu_number} from server?`))return;try{const res=await fetch('/api/mvudetail/delete-one',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mvuNumber:r.mvu_number})}),x=await res.json();if(!res.ok||!x.ok)throw new Error(x.error||'Delete failed.');await loadStatus();await loadMVUTable();show(`MVU ${r.mvu_number} deleted.`,'success')}catch(e){show(e.message,'error')}}
 async function deleteAllMvu(){if(!confirm('Are you sure? ALL MVU Details will be deleted from the server.'))return;try{const r=await fetch('/api/mvudetail/delete-all',{method:'POST'}),x=await r.json();if(!r.ok||!x.ok)throw new Error(x.error||'Delete all failed.');await loadStatus();await loadMVUTable();show('All MVU Details deleted from server.','success')}catch(e){show(e.message,'error')}}
+async function resetServerDataExceptMaster(){
+  if(!confirm('WARNING: This will permanently delete all server report data and upload logs. MVU Master Data will be preserved. Continue?'))return;
+  const confirmation=prompt('Type RESET to confirm deleting all server data except Master Data:');
+  if(confirmation!=='RESET'){if(confirmation!==null)show('Reset cancelled: confirmation text did not match.','error');return;}
+  const btn=$('resetServerDataBtn');if(btn)btn.disabled=true;
+  try{
+    const r=await fetch('/api/reset/all-except-master',{method:'POST'});
+    const x=await r.json();
+    if(!r.ok||!x.ok)throw new Error(x.error||'Server data reset failed.');
+    $('masterArea').classList.remove('show');
+    await loadStatus();
+    show('Server data reset complete. MVU Master Data was preserved. Please unlock Master Data again if needed.','success');
+  }catch(e){show(e.message,'error');}
+  finally{if(btn)btn.disabled=false;}
+}
 function setDetailProgress(pct,stage,done='',remaining='',states={}){
   const wrap=$('detailProgressWrap'); if(wrap)wrap.style.display='block';
   const bar=$('detailProgressBar'); if(bar)bar.style.width=Math.max(0,Math.min(100,pct))+'%';
@@ -1633,12 +1649,12 @@ async function submitMasterPassword(){
   const password=input?.value||''; if(!password){if(err)err.textContent='Please enter password.';return;}
   if(btn)btn.disabled=true;
   try{const r=await fetch('/api/master/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});const x=await r.json();if(!r.ok||!x.ok)throw new Error(x.error||'Incorrect password.');$('masterPasswordModal').style.display='none';$('masterArea').classList.add('show');await loadMVUTable();show('Master Data unlocked successfully.','success');}
-  catch(e){if(err)err.textContent='❌ '+(e?.message||'Unable to unlock Master Data.');input?.focus();input?.select();}
+  catch(e){if(err)err.textContent='❌ Incorrect password. Try again.';input?.focus();input?.select();}
   finally{if(btn)btn.disabled=false;}
 }
 $('masterPasswordCancel').onclick=()=>{$('masterPasswordModal').style.display='none'};
 $('masterPasswordSubmit').onclick=submitMasterPassword;
 $('masterPasswordInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitMasterPassword();if(e.key==='Escape')$('masterPasswordModal').style.display='none'});
 $('changeMasterBtn').onclick=unlockMaster;
-$('mvuDetailBtn').onclick=uploadMVUDetail;$('deleteAllMVUBtn').onclick=deleteAllMvu;$('refreshMVUBtn').onclick=loadMVUTable;$('districtFilter').onchange=loadMVUTable;$('mvuSearch').oninput=()=>{clearTimeout(window.mvuSearchTimer);window.mvuSearchTimer=setTimeout(loadMVUTable,250)};$('generateBtn').addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();generate();return false;},true);loadStatus();restorePersistentSummary();
+$('mvuDetailBtn').onclick=uploadMVUDetail;$('deleteAllMVUBtn').onclick=deleteAllMvu;$('resetServerDataBtn').onclick=resetServerDataExceptMaster;$('refreshMVUBtn').onclick=loadMVUTable;$('districtFilter').onchange=loadMVUTable;$('mvuSearch').oninput=()=>{clearTimeout(window.mvuSearchTimer);window.mvuSearchTimer=setTimeout(loadMVUTable,250)};$('generateBtn').addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();generate();return false;},true);loadStatus();restorePersistentSummary();
 </script></body></html>
