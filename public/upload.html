@@ -1633,7 +1633,7 @@ async function submitMasterPassword(){
   const password=input?.value||''; if(!password){if(err)err.textContent='Please enter password.';return;}
   if(btn)btn.disabled=true;
   try{const r=await fetch('/api/master/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});const x=await r.json();if(!r.ok||!x.ok)throw new Error(x.error||'Incorrect password.');$('masterPasswordModal').style.display='none';$('masterArea').classList.add('show');await loadMVUTable();show('Master Data unlocked successfully.','success');}
-  catch(e){if(err)err.textContent='❌ Incorrect password. Try again.';input?.focus();input?.select();}
+  catch(e){if(err)err.textContent='❌ '+(e?.message||'Unable to unlock Master Data.');input?.focus();input?.select();}
   finally{if(btn)btn.disabled=false;}
 }
 $('masterPasswordCancel').onclick=()=>{$('masterPasswordModal').style.display='none'};
